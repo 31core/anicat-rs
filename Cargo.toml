@@ -1,0 +1,8 @@
+[package]
+name = "anicat"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["31core im31core@yandex.com"]
+
+[dependencies]

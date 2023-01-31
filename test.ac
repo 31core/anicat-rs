@@ -1,0 +1,19 @@
+func fib(var i: Int) -> Int
+{
+	if(n == 1 || n == 2)
+	{
+		return 1;
+	};
+	if(n == 2)
+	{
+		return 2;
+	};
+	return fib(n - 1) + fib(n - 2);
+}
+
+func main()
+{
+	var i;
+	i = 1 + 2 * 3;
+	print(fib(45));
+}
