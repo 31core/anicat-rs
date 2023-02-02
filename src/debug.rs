@@ -88,7 +88,7 @@ fn _print_ast(node: &AstNode, re: usize) {
     }
     print_node(node, re);
     for i in &node.nodes {
-        _print_ast(i, re + 1);
+        _print_ast(&(i.borrow()), re + 1);
     }
 }
 /// print AST

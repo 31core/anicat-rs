@@ -1,9 +1,12 @@
 use super::token::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+
 #[derive(Clone)]
 pub struct AstNode {
     pub r#type: u8,
     pub data: String,
-    pub nodes: Vec<AstNode>,
+    pub nodes: Vec<Rc<RefCell<AstNode>>>,
 }
 
 impl AstNode {
@@ -15,7 +18,7 @@ impl AstNode {
         }
     }
     /// push a subnode
-    pub fn push(&mut self, node: &AstNode) {
+    pub fn push(&mut self, node: Rc<RefCell<AstNode>>) {
         self.nodes.push(node.clone());
     }
     /// remove a subnode
@@ -56,17 +59,18 @@ impl AstNode {
             match token.r#type {
                 TOKEN_TYPE_NUMBER => new_node.r#type = AST_TYPE_VALUE,
                 TOKEN_TYPE_STRING => new_node.r#type = AST_TYPE_VALUE,
-                TOKEN_TYPE_ADD => new_node.r#type = AST_TYPE_ADD,
-                TOKEN_TYPE_SUB => new_node.r#type = AST_TYPE_SUB,
-                TOKEN_TYPE_MUL => new_node.r#type = AST_TYPE_MUL,
-                TOKEN_TYPE_DIV => new_node.r#type = AST_TYPE_DIV,
+                TOKEN_TYPE_ADD => new_node.r#type = AST_TYPE_ADD, // +
+                TOKEN_TYPE_SUB => new_node.r#type = AST_TYPE_SUB, // -
+                TOKEN_TYPE_MUL => new_node.r#type = AST_TYPE_MUL, // *
+                TOKEN_TYPE_DIV => new_node.r#type = AST_TYPE_DIV, // /
+                TOKEN_TYPE_EQU => new_node.r#type = AST_TYPE_VAR_SET_VALUE, // =
                 TOKEN_TYPE_LOGIC_AND => new_node.r#type = AST_TYPE_AND, // &&
-                TOKEN_TYPE_LOGIC_OR => new_node.r#type = AST_TYPE_OR,   // ||
-                TOKEN_TYPE_ISEQU => new_node.r#type = AST_TYPE_EQU,     // ==
-                TOKEN_TYPE_LT => new_node.r#type = AST_TYPE_LT,         // <
-                TOKEN_TYPE_GT => new_node.r#type = AST_TYPE_GT,         // >
-                TOKEN_TYPE_LE => new_node.r#type = AST_TYPE_LE,         // <=
-                TOKEN_TYPE_GE => new_node.r#type = AST_TYPE_GE,         // >=
+                TOKEN_TYPE_LOGIC_OR => new_node.r#type = AST_TYPE_OR, // ||
+                TOKEN_TYPE_ISEQU => new_node.r#type = AST_TYPE_EQU, // ==
+                TOKEN_TYPE_LT => new_node.r#type = AST_TYPE_LT,   // <
+                TOKEN_TYPE_GT => new_node.r#type = AST_TYPE_GT,   // >
+                TOKEN_TYPE_LE => new_node.r#type = AST_TYPE_LE,   // <=
+                TOKEN_TYPE_GE => new_node.r#type = AST_TYPE_GE,   // >=
                 TOKEN_TYPE_NAME => new_node.r#type = AST_TYPE_IDENTIFIER,
                 TOKEN_TYPE_RS_BKT => break,
                 TOKEN_TYPE_RL_BKT => break,
@@ -82,7 +86,7 @@ impl AstNode {
                 new_node = AstNode::from_tokens(tokens);
                 new_node.r#type = AST_TYPE_CODE_BLOCK;
             }
-            top_ast.push(&new_node);
+            top_ast.push(Rc::new(RefCell::new(new_node)));
         }
         let mut node_i = 0;
         while node_i < top_ast.nodes.len() {
@@ -90,73 +94,87 @@ impl AstNode {
                if expression
                elif expression
             */
-            if top_ast.nodes[node_i].r#type == AST_TYPE_IF
-                || top_ast.nodes[node_i].r#type == AST_TYPE_ELIF
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_IF
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_ELIF
             {
                 /* add param node */
                 let param_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].push(&param_node);
+                top_ast.nodes[node_i].borrow_mut().push(param_node);
                 top_ast.remove(node_i + 1);
 
                 /* add code block */
                 let code_block_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].push(&code_block_node);
+                top_ast.nodes[node_i].borrow_mut().push(code_block_node);
                 top_ast.remove(node_i + 1);
             }
             /* function declaration */
-            if top_ast.nodes[node_i].r#type == AST_TYPE_FUNC_DEF {
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_FUNC_DEF {
                 /* add identifier node */
                 let id_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].push(&id_node);
+                top_ast.nodes[node_i].borrow_mut().push(id_node);
                 top_ast.remove(node_i + 1);
 
                 /* add param node */
                 let param_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].push(&param_node);
+                top_ast.nodes[node_i].borrow_mut().push(param_node);
                 top_ast.remove(node_i + 1);
 
                 /* function with a return type */
-                if top_ast.nodes[node_i + 1].data == "->" {
+                if top_ast.nodes[node_i + 1].borrow().data == "->" {
                     top_ast.remove(node_i + 1); //remove "->" node
                                                 /* add code block */
                     let code_block = top_ast.nodes[node_i + 2].clone();
-                    top_ast.nodes[node_i].push(&code_block);
+                    top_ast.nodes[node_i].borrow_mut().push(code_block);
 
                     /* add ret type */
                     let ret_type = top_ast.nodes[node_i + 1].clone();
-                    top_ast.nodes[node_i].push(&ret_type);
+                    ret_type.borrow_mut().r#type = AST_TYPE_VAR_TYPE;
+                    top_ast.nodes[node_i].borrow_mut().push(ret_type);
                     top_ast.remove(node_i + 1);
                     top_ast.remove(node_i + 1);
                 } else {
-                    let code_block = &top_ast.nodes[node_i + 1].clone();
-                    top_ast.nodes[node_i].push(&code_block);
+                    let code_block = top_ast.nodes[node_i + 1].clone();
+                    top_ast.nodes[node_i].borrow_mut().push(code_block);
                     top_ast.remove(node_i + 1);
                 }
             }
             /* call a function */
-            if top_ast.nodes[node_i].r#type == AST_TYPE_IDENTIFIER
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_IDENTIFIER
                 && node_i < top_ast.nodes.len() - 1
-                && top_ast.nodes[node_i + 1].r#type == AST_TYPE_PARAMS
+                && top_ast.nodes[node_i + 1].borrow().r#type == AST_TYPE_PARAMS
             {
                 let mut func_call_node = AstNode::new();
                 func_call_node.r#type = AST_TYPE_FUNC_CALL;
-                func_call_node.push(&top_ast.nodes[node_i]); //add identifier node
-                func_call_node.push(&top_ast.nodes[node_i + 1]); //add param node
-                top_ast.nodes[node_i] = func_call_node;
+                func_call_node.push(top_ast.nodes[node_i].clone()); //add identifier node
+                func_call_node.push(top_ast.nodes[node_i + 1].clone()); //add param node
+                top_ast.nodes[node_i] = Rc::new(RefCell::new(func_call_node));
                 top_ast.remove(node_i + 1);
             }
             /* declare a variable */
-            if top_ast.nodes[node_i].r#type == AST_TYPE_VAR_DECLARE {
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_VAR_DECLARE {
                 /* add identifier node */
                 let id_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].push(&id_node);
+                top_ast.nodes[node_i].borrow_mut().push(id_node);
                 top_ast.remove(node_i + 1);
             }
+            if top_ast.nodes[node_i].borrow().data == ":" {
+                let type_node = top_ast.nodes[node_i + 1].clone();
+                type_node.borrow_mut().r#type = AST_TYPE_VAR_TYPE;
+                top_ast.nodes[node_i - 1].borrow_mut().push(type_node);
+                top_ast.remove(node_i);
+                top_ast.remove(node_i);
+                node_i -= 1;
+            }
+            node_i += 1;
+        }
+        /* merge '+' '-' '*' '/' nodes */
+        let mut node_i = 0;
+        while node_i < top_ast.nodes.len() {
             /* operations */
-            if top_ast.nodes[node_i].r#type == AST_TYPE_ADD
-                || top_ast.nodes[node_i].r#type == AST_TYPE_SUB
-                || top_ast.nodes[node_i].r#type == AST_TYPE_MUL
-                || top_ast.nodes[node_i].r#type == AST_TYPE_DIV
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_ADD
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_SUB
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_MUL
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_DIV
             {
                 let left = top_ast.nodes[node_i - 1].clone();
                 let right = top_ast.nodes[node_i + 1].clone();
@@ -164,24 +182,107 @@ impl AstNode {
                 /*
                 Last node is ('+' or '-') and this node is ('*' or '/')
                 like this:
-                  +    *    C
+                          node_i
+                            |
+                            v
+                  +    *    C   *   D
                  / \
                 A   B
                 */
-                if (top_ast.nodes[node_i].r#type == AST_TYPE_MUL
-                    || top_ast.nodes[node_i].r#type == AST_TYPE_DIV)
-                    && (top_ast.nodes[node_i - 1].r#type == AST_TYPE_ADD
-                        || top_ast.nodes[node_i - 1].r#type == AST_TYPE_SUB)
+                if (top_ast.nodes[node_i].borrow().r#type == AST_TYPE_MUL
+                    || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_DIV)
+                    && (top_ast.nodes[node_i - 1].borrow().r#type == AST_TYPE_ADD
+                        || top_ast.nodes[node_i - 1].borrow().r#type == AST_TYPE_SUB)
                 {
-                    top_ast.nodes[node_i].push(&left.nodes[1]);
-                    top_ast.nodes[node_i].push(&right);
-                    top_ast.nodes[node_i - 1].nodes[1] = top_ast.nodes[node_i].clone();
+                    /*
+                    C's right node point to B
+                      +    *    C   *   D
+                     / \ /-----/
+                    A   B
+                    */
+                    top_ast.nodes[node_i]
+                        .borrow_mut()
+                        .push(left.borrow().nodes[1].clone());
+                    /*
+                    C's right node point to D
+                                      |\
+                      +    *    C   * | D
+                     / \ /-----/ \----+
+                    A   B
+                    */
+                    top_ast.nodes[node_i].borrow_mut().push(right);
+                    /*
+                    +'s right node point to C
+                      +
+                     / \
+                    A   C
+                       / \
+                      B   D
+                    */
+                    top_ast.nodes[node_i - 1].borrow_mut().nodes[1] = top_ast.nodes[node_i].clone();
                     top_ast.nodes[node_i] = top_ast.nodes[node_i - 1].clone();
                 } else {
-                    top_ast.nodes[node_i].push(&left);
-                    top_ast.nodes[node_i].push(&right);
+                    top_ast.nodes[node_i].borrow_mut().push(left);
+                    top_ast.nodes[node_i].borrow_mut().push(right);
                 }
 
+                /* remove left and right */
+                top_ast.remove(node_i - 1);
+                top_ast.remove(node_i);
+                node_i -= 1;
+            }
+            node_i += 1;
+        }
+        /* merge '==' '<' '>' '<=' '>=' nodes */
+        let mut node_i = 0;
+        while node_i < top_ast.nodes.len() {
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_EQU
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_LT
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_GT
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_LE
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_GE
+            {
+                let left = top_ast.nodes[node_i - 1].clone();
+                let right = top_ast.nodes[node_i + 1].clone();
+                top_ast.nodes[node_i].borrow_mut().push(left);
+                top_ast.nodes[node_i].borrow_mut().push(right);
+                /* remove left and right */
+                top_ast.remove(node_i - 1);
+                top_ast.remove(node_i);
+                node_i -= 1;
+            }
+            node_i += 1;
+        }
+        /* merge '&&' '||' nodes */
+        let mut node_i = 0;
+        while node_i < top_ast.nodes.len() {
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_AND
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_OR
+            {
+                let left = top_ast.nodes[node_i - 1].clone();
+                let right = top_ast.nodes[node_i + 1].clone();
+                top_ast.nodes[node_i].borrow_mut().push(left);
+                top_ast.nodes[node_i].borrow_mut().push(right);
+                /* remove left and right */
+                top_ast.remove(node_i - 1);
+                top_ast.remove(node_i);
+                node_i -= 1;
+            }
+            node_i += 1;
+        }
+        /* handle 'return' '=' node */
+        let mut node_i = 0;
+        while node_i < top_ast.nodes.len() {
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_RETURN {
+                let this_node = top_ast.nodes[node_i + 1].clone();
+                top_ast.nodes[node_i].borrow_mut().push(this_node);
+                top_ast.remove(node_i + 1);
+            }
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_VAR_SET_VALUE {
+                let left = top_ast.nodes[node_i - 1].clone();
+                let right = top_ast.nodes[node_i + 1].clone();
+                top_ast.nodes[node_i].borrow_mut().push(left);
+                top_ast.nodes[node_i].borrow_mut().push(right);
                 /* remove left and right */
                 top_ast.remove(node_i - 1);
                 top_ast.remove(node_i);
@@ -199,9 +300,7 @@ const AST_TYPE_UNDEFINED: u8 = 0;
 const AST_TYPE_PROGRAM: u8 = 1;
 const AST_TYPE_IDENTIFIER: u8 = 2;
 const AST_TYPE_VAR_DECLARE: u8 = 3;
-#[allow(dead_code)]
 const AST_TYPE_VAR_TYPE: u8 = 4;
-#[allow(dead_code)]
 const AST_TYPE_VAR_SET_VALUE: u8 = 5;
 #[allow(dead_code)]
 const AST_TYPE_VAR_GET_VALUE: u8 = 6;
