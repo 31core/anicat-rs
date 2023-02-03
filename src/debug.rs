@@ -1,6 +1,8 @@
 use super::ast::AstNode;
 use super::token::Token;
 use std::fmt::Debug;
+use super::vm::VM;
+
 const AST_TYPES: [&str; 32] = [
     "AST_TYPE_UNDEFINED",
     "AST_TYPE_PROGRAM",
@@ -76,6 +78,15 @@ impl Debug for AstNode {
 impl Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}\t{}", self.name, TOKEN_TYPES[self.r#type as usize])?;
+        Ok(())
+    }
+}
+
+impl Debug for VM {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "C0: 0x{:08X}\n", self.c0)?;
+        write!(f, "SP: 0x{:08X}\n", self.sp)?;
+        write!(f, "IP: 0x{:08X}", self.ip)?;
         Ok(())
     }
 }
