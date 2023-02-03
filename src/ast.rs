@@ -182,10 +182,10 @@ impl AstNode {
                 /*
                 Last node is ('+' or '-') and this node is ('*' or '/')
                 like this:
-                          node_i
-                            |
-                            v
-                  +    *    C   *   D
+                    node_i
+                      |
+                      v
+                  +   *
                  / \
                 A   B
                 */
@@ -195,29 +195,29 @@ impl AstNode {
                         || top_ast.nodes[node_i - 1].borrow().r#type == AST_TYPE_SUB)
                 {
                     /*
-                    C's right node point to B
-                      +    *    C   *   D
-                     / \ /-----/
+                    *'s right node point to B
+                      +   *
+                     / \ /
                     A   B
                     */
                     top_ast.nodes[node_i]
                         .borrow_mut()
                         .push(left.borrow().nodes[1].clone());
                     /*
-                    C's right node point to D
-                                      |\
-                      +    *    C   * | D
-                     / \ /-----/ \----+
+                    *'s right node point to C
+                            |\
+                      +   * | C
+                     / \ / \+
                     A   B
                     */
                     top_ast.nodes[node_i].borrow_mut().push(right);
                     /*
-                    +'s right node point to C
+                    +'s right node point to *
                       +
                      / \
-                    A   C
+                    A   *
                        / \
-                      B   D
+                      B   C
                     */
                     top_ast.nodes[node_i - 1].borrow_mut().nodes[1] = top_ast.nodes[node_i].clone();
                     top_ast.nodes[node_i] = top_ast.nodes[node_i - 1].clone();
@@ -294,37 +294,34 @@ impl AstNode {
     }
 }
 
-#[allow(dead_code)]
-const AST_TYPE_UNDEFINED: u8 = 0;
-#[allow(dead_code)]
-const AST_TYPE_PROGRAM: u8 = 1;
-const AST_TYPE_IDENTIFIER: u8 = 2;
-const AST_TYPE_VAR_DECLARE: u8 = 3;
-const AST_TYPE_VAR_TYPE: u8 = 4;
-const AST_TYPE_VAR_SET_VALUE: u8 = 5;
-#[allow(dead_code)]
-const AST_TYPE_VAR_GET_VALUE: u8 = 6;
-const AST_TYPE_FUNC_DEF: u8 = 7;
-const AST_TYPE_FUNC_CALL: u8 = 8;
-const AST_TYPE_CODE_BLOCK: u8 = 9;
-const AST_TYPE_PARAMS: u8 = 10;
-const AST_TYPE_IF: u8 = 11;
-const AST_TYPE_ELIF: u8 = 12;
-const AST_TYPE_ELSE: u8 = 13;
-const AST_TYPE_FOR: u8 = 14;
-const AST_TYPE_WHILE: u8 = 15;
-const AST_TYPE_ADD: u8 = 16; // +
-const AST_TYPE_SUB: u8 = 17; // -
-const AST_TYPE_MUL: u8 = 18; // *
-const AST_TYPE_DIV: u8 = 19; // /
-const AST_TYPE_GT: u8 = 20; // >
-const AST_TYPE_LT: u8 = 21; // <
-const AST_TYPE_GE: u8 = 22; // >=
-const AST_TYPE_LE: u8 = 23; // >=
-const AST_TYPE_EQU: u8 = 24; // ==
-const AST_TYPE_AND: u8 = 25;
-const AST_TYPE_OR: u8 = 26;
-const AST_TYPE_VALUE: u8 = 27;
-const AST_TYPE_BREAK: u8 = 28;
-const AST_TYPE_CONTINUE: u8 = 29;
-const AST_TYPE_RETURN: u8 = 30;
+pub const AST_TYPE_UNDEFINED: u8 = 0;
+pub const AST_TYPE_PROGRAM: u8 = 1;
+pub const AST_TYPE_IDENTIFIER: u8 = 2;
+pub const AST_TYPE_VAR_DECLARE: u8 = 3;
+pub const AST_TYPE_VAR_TYPE: u8 = 4;
+pub const AST_TYPE_VAR_SET_VALUE: u8 = 5;
+pub const AST_TYPE_VAR_GET_VALUE: u8 = 6;
+pub const AST_TYPE_FUNC_DEF: u8 = 7;
+pub const AST_TYPE_FUNC_CALL: u8 = 8;
+pub const AST_TYPE_CODE_BLOCK: u8 = 9;
+pub const AST_TYPE_PARAMS: u8 = 10;
+pub const AST_TYPE_IF: u8 = 11;
+pub const AST_TYPE_ELIF: u8 = 12;
+pub const AST_TYPE_ELSE: u8 = 13;
+pub const AST_TYPE_FOR: u8 = 14;
+pub const AST_TYPE_WHILE: u8 = 15;
+pub const AST_TYPE_ADD: u8 = 16; // +
+pub const AST_TYPE_SUB: u8 = 17; // -
+pub const AST_TYPE_MUL: u8 = 18; // *
+pub const AST_TYPE_DIV: u8 = 19; // /
+pub const AST_TYPE_GT: u8 = 20; // >
+pub const AST_TYPE_LT: u8 = 21; // <
+pub const AST_TYPE_GE: u8 = 22; // >=
+pub const AST_TYPE_LE: u8 = 23; // >=
+pub const AST_TYPE_EQU: u8 = 24; // ==
+pub const AST_TYPE_AND: u8 = 25;
+pub const AST_TYPE_OR: u8 = 26;
+pub const AST_TYPE_VALUE: u8 = 27;
+pub const AST_TYPE_BREAK: u8 = 28;
+pub const AST_TYPE_CONTINUE: u8 = 29;
+pub const AST_TYPE_RETURN: u8 = 30;

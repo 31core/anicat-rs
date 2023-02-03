@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "anicat-rs"
+name = "anicat"
 version = "0.1.0"
