@@ -1,7 +1,7 @@
 use super::ast::AstNode;
 use super::token::Token;
 use std::fmt::Debug;
-const AST_TYPES: [&str; 31] = [
+const AST_TYPES: [&str; 32] = [
     "AST_TYPE_UNDEFINED",
     "AST_TYPE_PROGRAM",
     "AST_TYPE_IDENTIFIER",
@@ -33,6 +33,7 @@ const AST_TYPES: [&str; 31] = [
     "AST_TYPE_BREAK",
     "AST_TYPE_CONTINUE",
     "AST_TYPE_RETURN",
+    "AST_TYPE_INDEX",
 ];
 
 const TOKEN_TYPES: [&str; 27] = [

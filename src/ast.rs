@@ -73,6 +73,7 @@ impl AstNode {
                 TOKEN_TYPE_GE => new_node.r#type = AST_TYPE_GE,   // >=
                 TOKEN_TYPE_NAME => new_node.r#type = AST_TYPE_IDENTIFIER,
                 TOKEN_TYPE_RS_BKT => break,
+                TOKEN_TYPE_RM_BKT => break,
                 TOKEN_TYPE_RL_BKT => break,
                 _ => {}
             }
@@ -80,6 +81,10 @@ impl AstNode {
             if token.r#type == TOKEN_TYPE_LS_BKT {
                 new_node = AstNode::from_tokens(tokens);
                 new_node.r#type = AST_TYPE_PARAMS;
+            }
+            if token.r#type == TOKEN_TYPE_LM_BKT {
+                new_node = AstNode::from_tokens(tokens);
+                new_node.r#type = AST_TYPE_INDEX;
             }
             /* { */
             else if token.r#type == TOKEN_TYPE_LL_BKT {
@@ -156,6 +161,17 @@ impl AstNode {
                 let id_node = top_ast.nodes[node_i + 1].clone();
                 top_ast.nodes[node_i].borrow_mut().push(id_node);
                 top_ast.remove(node_i + 1);
+            }
+            /* index an array */
+            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_INDEX {
+                let index = top_ast.nodes[node_i].borrow().nodes[0].clone();
+                let array = top_ast.nodes[node_i - 1].clone();
+
+                top_ast.nodes[node_i].borrow_mut().nodes.pop();
+                top_ast.nodes[node_i].borrow_mut().push(array);
+                top_ast.nodes[node_i].borrow_mut().push(index);
+                top_ast.remove(node_i - 1);
+                node_i -= 1;
             }
             if top_ast.nodes[node_i].borrow().data == ":" {
                 let type_node = top_ast.nodes[node_i + 1].clone();
@@ -328,3 +344,4 @@ const AST_TYPE_VALUE: u8 = 27;
 const AST_TYPE_BREAK: u8 = 28;
 const AST_TYPE_CONTINUE: u8 = 29;
 const AST_TYPE_RETURN: u8 = 30;
+pub const AST_TYPE_INDEX: u8 = 31;
