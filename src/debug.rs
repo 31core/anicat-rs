@@ -10,7 +10,6 @@ const AST_TYPES: [&str; 32] = [
     "AST_TYPE_VAR_DECLARE",
     "AST_TYPE_VAR_TYPE",
     "AST_TYPE_VAR_SET_VALUE",
-    "AST_TYPE_VAR_GET_VALUE",
     "AST_TYPE_FUNC_DEF",
     "AST_TYPE_FUNC_CALL",
     "AST_TYPE_CODE_BLOCK",
@@ -29,6 +28,7 @@ const AST_TYPES: [&str; 32] = [
     "AST_TYPE_GE",
     "AST_TYPE_LE",
     "AST_TYPE_EQU",
+    "AST_TYPE_NEQU",
     "AST_TYPE_AND",
     "AST_TYPE_OR",
     "AST_TYPE_VALUE",
@@ -38,7 +38,7 @@ const AST_TYPES: [&str; 32] = [
     "AST_TYPE_INDEX",
 ];
 
-const TOKEN_TYPES: [&str; 27] = [
+const TOKEN_TYPES: [&str; 30] = [
     "TOKEN_TYPE_UNKOWN",
     "TOKEN_TYPE_NAME",
     "TOKEN_TYPE_KEYWORD",
@@ -57,13 +57,16 @@ const TOKEN_TYPES: [&str; 27] = [
     "TOKEN_TYPE_GT",
     "TOKEN_TYPE_LT",
     "TOKEN_TYPE_ISEQU",
+    "TOKEN_TYPE_NOTEQU",
     "TOKEN_TYPE_GE",
     "TOKEN_TYPE_LE",
     "TOKEN_TYPE_NUMBER",
+    "TOKEN_TYPE_CHAR",
     "TOKEN_TYPE_SPLIT",
     "TOKEN_TYPE_STRING",
     "TOKEN_TYPE_AND",
     "TOKEN_TYPE_OR",
+    "TOKEN_TYPE_NOT",
     "TOKEN_TYPE_LOGIC_AND",
     "TOKEN_TYPE_LOGIC_OR",
 ];

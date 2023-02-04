@@ -22,15 +22,18 @@ pub const TOKEN_TYPE_DIV: u8 = 14; // /
 pub const TOKEN_TYPE_GT: u8 = 15; // >
 pub const TOKEN_TYPE_LT: u8 = 16; // <
 pub const TOKEN_TYPE_ISEQU: u8 = 17; // ==
-pub const TOKEN_TYPE_GE: u8 = 18; // >=
-pub const TOKEN_TYPE_LE: u8 = 19; // <=
-pub const TOKEN_TYPE_NUMBER: u8 = 20;
-pub const TOKEN_TYPE_SPLIT: u8 = 21;
-pub const TOKEN_TYPE_STRING: u8 = 22;
-pub const TOKEN_TYPE_AND: u8 = 23; // *
-pub const TOKEN_TYPE_OR: u8 = 24; // |
-pub const TOKEN_TYPE_LOGIC_AND: u8 = 25; // &&
-pub const TOKEN_TYPE_LOGIC_OR: u8 = 26; // ||
+pub const TOKEN_TYPE_NOTEQU: u8 = 18; // !=
+pub const TOKEN_TYPE_GE: u8 = 19; // >=
+pub const TOKEN_TYPE_LE: u8 = 20; // <=
+pub const TOKEN_TYPE_NUMBER: u8 = 21;
+pub const TOKEN_TYPE_CHAR: u8 = 22;
+pub const TOKEN_TYPE_SPLIT: u8 = 23;
+pub const TOKEN_TYPE_STRING: u8 = 24;
+pub const TOKEN_TYPE_AND: u8 = 25; // *
+pub const TOKEN_TYPE_OR: u8 = 26; // |
+pub const TOKEN_TYPE_NOT: u8 = 27; // !
+pub const TOKEN_TYPE_LOGIC_AND: u8 = 28; // &&
+pub const TOKEN_TYPE_LOGIC_OR: u8 = 29; // ||
 
 impl Token {
     pub fn new() -> Self {
@@ -50,16 +53,26 @@ pub const KEYWORDS: [&str; 14] = [
 fn get_flag_pos(str: &str) -> Vec<isize> {
     let mut ret: Vec<isize> = vec![];
     ret.push(-1);
-    pub const SYMBOL: &str = " =()[]{},:;+-*/&|\t\n";
+    pub const SYMBOLS: &str = " \"=()[]{},:;+-*/&|!\t\n";
+    let mut in_string = false;
     for i in 0..str.len() {
-        for j in SYMBOL.chars() {
-            if str.as_bytes()[i] == j as u8 {
-                ret.push(i as isize);
+        for sym in SYMBOLS.chars() {
+            if str.as_bytes()[i] == sym as u8 {
+                /* if in a string, don't put an in-string synbol into the 'ret' list */
+                if !in_string {
+                    ret.push(i as isize);
+                } else if in_string && sym == '"' {
+                    ret.push(i as isize);
+                }
+                if sym == '"' {
+                    in_string = !in_string;
+                }
+                break;
             }
         }
     }
     ret.push(str.len() as isize);
-    return ret;
+    ret
 }
 
 /// detect if a keyword
@@ -69,7 +82,7 @@ fn is_keyword(str: &str) -> bool {
             return true;
         }
     }
-    return false;
+    false
 }
 
 /// detect if a number
@@ -79,7 +92,7 @@ fn is_number(str: &str) -> bool {
             return false;
         }
     }
-    return true;
+    true
 }
 
 /**
@@ -131,10 +144,15 @@ pub fn generate_token(code: &str) -> Vec<Token> {
             tokens[i].r#type = TOKEN_TYPE_KEYWORD;
         } else if is_number(&tokens[i].name) {
             tokens[i].r#type = TOKEN_TYPE_NUMBER;
-        } else if tokens[i].name[0..1] == "\"".to_string()
-            && tokens[i].name[tokens[i].name.len()..(tokens[i].name.len() + 1)] == "\"".to_string()
+        } else if tokens[i].name == "\"" && tokens[i + 2].name == "\"" {
+            tokens[i + 1].r#type = TOKEN_TYPE_STRING;
+            tokens.remove(i + 2);
+            tokens.remove(i);
+        } else if tokens[i].name.len() == 3
+            && tokens[i].name.as_bytes()[0] == '\'' as u8
+            && tokens[i].name.as_bytes()[2] == '\'' as u8
         {
-            tokens[i].r#type = TOKEN_TYPE_STRING;
+            tokens[i].r#type = TOKEN_TYPE_CHAR;
         } else if tokens[i].name == "&" && tokens[i + 1].name == "&" {
             tokens[i].r#type = TOKEN_TYPE_LOGIC_AND;
             tokens[i].name = "&&".to_string();
@@ -146,6 +164,10 @@ pub fn generate_token(code: &str) -> Vec<Token> {
         } else if tokens[i].name == "=" && tokens[i + 1].name == "=" {
             tokens[i].r#type = TOKEN_TYPE_ISEQU;
             tokens[i].name = "==".to_string();
+            tokens.remove(i + 1);
+        } else if tokens[i].name == "!" && tokens[i + 1].name == "=" {
+            tokens[i].r#type = TOKEN_TYPE_NOTEQU;
+            tokens[i].name = "!=".to_string();
             tokens.remove(i + 1);
         } else if tokens[i].name == "-" && tokens[i + 1].name == ">" {
             tokens[i].r#type = TOKEN_TYPE_EXPLAIN;
@@ -174,6 +196,7 @@ pub fn generate_token(code: &str) -> Vec<Token> {
             match &tokens[i].name[..] {
                 "&" => tokens[i].r#type = TOKEN_TYPE_AND,
                 "|" => tokens[i].r#type = TOKEN_TYPE_OR,
+                "!" => tokens[i].r#type = TOKEN_TYPE_NOT,
                 "=" => tokens[i].r#type = TOKEN_TYPE_EQU,
                 ":" => tokens[i].r#type = TOKEN_TYPE_EXPLAIN,
                 "+" => tokens[i].r#type = TOKEN_TYPE_ADD,

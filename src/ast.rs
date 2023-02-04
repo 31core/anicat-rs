@@ -59,6 +59,7 @@ impl AstNode {
             match token.r#type {
                 TOKEN_TYPE_NUMBER => new_node.r#type = AST_TYPE_VALUE,
                 TOKEN_TYPE_STRING => new_node.r#type = AST_TYPE_VALUE,
+                TOKEN_TYPE_CHAR => new_node.r#type = AST_TYPE_VALUE,
                 TOKEN_TYPE_ADD => new_node.r#type = AST_TYPE_ADD, // +
                 TOKEN_TYPE_SUB => new_node.r#type = AST_TYPE_SUB, // -
                 TOKEN_TYPE_MUL => new_node.r#type = AST_TYPE_MUL, // *
@@ -67,6 +68,7 @@ impl AstNode {
                 TOKEN_TYPE_LOGIC_AND => new_node.r#type = AST_TYPE_AND, // &&
                 TOKEN_TYPE_LOGIC_OR => new_node.r#type = AST_TYPE_OR, // ||
                 TOKEN_TYPE_ISEQU => new_node.r#type = AST_TYPE_EQU, // ==
+                TOKEN_TYPE_NOTEQU => new_node.r#type = AST_TYPE_NEQU, // !=
                 TOKEN_TYPE_LT => new_node.r#type = AST_TYPE_LT,   // <
                 TOKEN_TYPE_GT => new_node.r#type = AST_TYPE_GT,   // >
                 TOKEN_TYPE_LE => new_node.r#type = AST_TYPE_LE,   // <=
@@ -249,10 +251,11 @@ impl AstNode {
             }
             node_i += 1;
         }
-        /* merge '==' '<' '>' '<=' '>=' nodes */
+        /* merge '==' '!=' '<' '>' '<=' '>=' nodes */
         let mut node_i = 0;
         while node_i < top_ast.nodes.len() {
             if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_EQU
+                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_NEQU
                 || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_LT
                 || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_GT
                 || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_LE
@@ -316,25 +319,25 @@ pub const AST_TYPE_IDENTIFIER: u8 = 2;
 pub const AST_TYPE_VAR_DECLARE: u8 = 3;
 pub const AST_TYPE_VAR_TYPE: u8 = 4;
 pub const AST_TYPE_VAR_SET_VALUE: u8 = 5;
-pub const AST_TYPE_VAR_GET_VALUE: u8 = 6;
-pub const AST_TYPE_FUNC_DEF: u8 = 7;
-pub const AST_TYPE_FUNC_CALL: u8 = 8;
-pub const AST_TYPE_CODE_BLOCK: u8 = 9;
-pub const AST_TYPE_PARAMS: u8 = 10;
-pub const AST_TYPE_IF: u8 = 11;
-pub const AST_TYPE_ELIF: u8 = 12;
-pub const AST_TYPE_ELSE: u8 = 13;
-pub const AST_TYPE_FOR: u8 = 14;
-pub const AST_TYPE_WHILE: u8 = 15;
-pub const AST_TYPE_ADD: u8 = 16; // +
-pub const AST_TYPE_SUB: u8 = 17; // -
-pub const AST_TYPE_MUL: u8 = 18; // *
-pub const AST_TYPE_DIV: u8 = 19; // /
-pub const AST_TYPE_GT: u8 = 20; // >
-pub const AST_TYPE_LT: u8 = 21; // <
-pub const AST_TYPE_GE: u8 = 22; // >=
-pub const AST_TYPE_LE: u8 = 23; // >=
-pub const AST_TYPE_EQU: u8 = 24; // ==
+pub const AST_TYPE_FUNC_DEF: u8 = 6;
+pub const AST_TYPE_FUNC_CALL: u8 = 7;
+pub const AST_TYPE_CODE_BLOCK: u8 = 8;
+pub const AST_TYPE_PARAMS: u8 = 9;
+pub const AST_TYPE_IF: u8 = 10;
+pub const AST_TYPE_ELIF: u8 = 11;
+pub const AST_TYPE_ELSE: u8 = 12;
+pub const AST_TYPE_FOR: u8 = 13;
+pub const AST_TYPE_WHILE: u8 = 14;
+pub const AST_TYPE_ADD: u8 = 15; // +
+pub const AST_TYPE_SUB: u8 = 16; // -
+pub const AST_TYPE_MUL: u8 = 17; // *
+pub const AST_TYPE_DIV: u8 = 18; // /
+pub const AST_TYPE_GT: u8 = 19; // >
+pub const AST_TYPE_LT: u8 = 20; // <
+pub const AST_TYPE_GE: u8 = 21; // >=
+pub const AST_TYPE_LE: u8 = 22; // >=
+pub const AST_TYPE_EQU: u8 = 23; // ==
+pub const AST_TYPE_NEQU: u8 = 24; // !=
 pub const AST_TYPE_AND: u8 = 25;
 pub const AST_TYPE_OR: u8 = 26;
 pub const AST_TYPE_VALUE: u8 = 27;
