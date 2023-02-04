@@ -1,7 +1,7 @@
 use super::ast::AstNode;
 use super::token::Token;
-use std::fmt::Debug;
 use super::vm::VM;
+use std::fmt::Debug;
 
 const AST_TYPES: [&str; 32] = [
     "AST_TYPE_UNDEFINED",

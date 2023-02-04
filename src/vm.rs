@@ -1,3 +1,4 @@
+use super::vram::VRAM;
 use std::cell::RefCell;
 
 pub const VM_OP_MOV: u8 = 0x01;
@@ -71,6 +72,16 @@ impl Param {
             _ => {}
         }
 
+        if param_type == VM_TYPE_MEM8
+            || param_type == VM_TYPE_MEM16
+            || param_type == VM_TYPE_MEM32
+            || param_type == VM_TYPE_MEM64
+        {
+            value =
+                u64::from_be_bytes(code[vm.ip as usize..vm.ip as usize + 8].try_into().unwrap());
+            vm.ip += 8;
+        }
+
         Param {
             r#type: param_type,
             value,
@@ -90,15 +101,37 @@ impl Param {
             VM_REG_SP => return vm.sp,
             _ => {}
         }
+        /* get value from vram */
+        if self.r#type == VM_TYPE_MEM8 {
+            return u8::from_be_bytes(vm.ram.dump(self.value, 1).try_into().unwrap()) as u64;
+        } else if self.r#type == VM_TYPE_MEM16 {
+            return u16::from_be_bytes(vm.ram.dump(self.value, 2).try_into().unwrap()) as u64;
+        } else if self.r#type == VM_TYPE_MEM32 {
+            return u32::from_be_bytes(vm.ram.dump(self.value, 4).try_into().unwrap()) as u64;
+        } else if self.r#type == VM_TYPE_MEM64 {
+            return u64::from_be_bytes(vm.ram.dump(self.value, 8).try_into().unwrap()) as u64;
+        }
         0
     }
     fn set_value(&mut self, value: u64, vm: &mut VM) {
+        /* copy to register */
         match self.r#type {
             VM_REG_C0 => vm.c0 = value,
             VM_REG_IP => vm.ip = value,
             VM_REG_SP => vm.sp = value,
 
             _ => {}
+        }
+        /* copy to vram */
+        if self.r#type == VM_TYPE_MEM8 {
+            /* addr = self.value */
+            vm.ram.load(self.value, 1, &(value as u8).to_be_bytes());
+        } else if self.r#type == VM_TYPE_MEM16 {
+            vm.ram.load(self.value, 2, &(value as u16).to_be_bytes());
+        } else if self.r#type == VM_TYPE_MEM32 {
+            return vm.ram.load(self.value, 4, &(value as u32).to_be_bytes());
+        } else if self.r#type == VM_TYPE_MEM64 {
+            return vm.ram.load(self.value, 8, &value.to_be_bytes());
         }
     }
 }
@@ -108,6 +141,7 @@ pub struct VM {
     pub c0: u64,
     pub ip: u64,
     pub sp: u64,
+    pub ram: VRAM,
     pub code: Box<RefCell<Vec<u8>>>,
 }
 
@@ -117,9 +151,11 @@ impl VM {
             c0: 0,
             ip: 0,
             sp: 0,
+            ram: VRAM::new(4 * 1024 * 1024 * 1024),
             code: Box::new(RefCell::new(Vec::new())),
         }
     }
+    /// run VM
     pub fn run(&mut self) {
         loop {
             let op = self.code.borrow()[self.ip as usize];
@@ -186,6 +222,7 @@ impl VM {
             }
         }
     }
+    /// update VM opcode
     pub fn update_code(&mut self, code: &[u8]) {
         self.code = Box::new(RefCell::new(Vec::from(code)));
     }

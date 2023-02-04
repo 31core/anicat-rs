@@ -2,6 +2,7 @@ pub mod ast;
 pub mod debug;
 pub mod token;
 pub mod vm;
+pub mod vram;
 
 //use ast::AstNode;
 use vm::*;
