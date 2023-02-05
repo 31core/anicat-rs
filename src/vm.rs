@@ -1,6 +1,8 @@
 use super::vram::VRAM;
 use std::cell::RefCell;
 
+const VM_STACK_SIZE: usize = 8 * 1024 * 1024;
+
 pub const VM_OP_MOV: u8 = 0x01;
 pub const VM_OP_IN: u8 = 0x02;
 pub const VM_OP_OUT: u8 = 0x03;
@@ -14,6 +16,9 @@ pub const VM_OP_PUSH: u8 = 0x0a;
 pub const VM_OP_POP: u8 = 0x0b;
 pub const VM_OP_CALL: u8 = 0x0c;
 pub const VM_OP_RET: u8 = 0x0d;
+pub const VM_OP_JE: u8 = 0x0e;
+pub const VM_OP_JG: u8 = 0x0f;
+pub const VM_OP_JL: u8 = 0x20;
 pub const VM_OP_HAL: u8 = 0x1f;
 
 pub const VM_REG_C0: u8 = 0x20;
@@ -150,7 +155,7 @@ impl VM {
         VM {
             c0: 0,
             ip: 0,
-            sp: 0,
+            sp: VM_STACK_SIZE as u64,
             ram: VRAM::new(4 * 1024 * 1024 * 1024),
             code: Box::new(RefCell::new(Vec::new())),
         }
@@ -210,6 +215,24 @@ impl VM {
                 source_val /= target_val;
 
                 source.set_value(source_val, self);
+            }
+            /* push register */
+            if op == VM_OP_PUSH {
+                let register = Param::from(self);
+
+                self.ram
+                    .load(self.sp, 8, &register.get_value(self).to_be_bytes());
+
+                self.sp -= 8;
+            }
+            /* pop register */
+            if op == VM_OP_POP {
+                let mut register = Param::from(self);
+
+                let reg_val = self.ram.dump(self.sp, 8);
+                register.set_value(u64::from_be_bytes(reg_val.try_into().unwrap()), self);
+
+                self.sp -= 8;
             }
             /* jmp addr */
             if op == VM_OP_JMP {

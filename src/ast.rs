@@ -74,6 +74,7 @@ impl AstNode {
                 TOKEN_TYPE_LE => new_node.r#type = AST_TYPE_LE,   // <=
                 TOKEN_TYPE_GE => new_node.r#type = AST_TYPE_GE,   // >=
                 TOKEN_TYPE_NAME => new_node.r#type = AST_TYPE_IDENTIFIER,
+                TOKEN_TYPE_SPLIT => continue,
                 TOKEN_TYPE_RS_BKT => break,
                 TOKEN_TYPE_RM_BKT => break,
                 TOKEN_TYPE_RL_BKT => break,

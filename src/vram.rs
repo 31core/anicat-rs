@@ -17,6 +17,6 @@ impl VRAM {
     }
     /// dump from VRAM
     pub fn dump(&self, addr: u64, size: u64) -> &[u8] {
-        &self.area[addr as usize..size as usize]
+        &self.area[addr as usize..(addr + size) as usize]
     }
 }

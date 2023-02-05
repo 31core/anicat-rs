@@ -53,19 +53,24 @@ pub const KEYWORDS: [&str; 14] = [
 fn get_flag_pos(str: &str) -> Vec<isize> {
     let mut ret: Vec<isize> = vec![];
     ret.push(-1);
-    pub const SYMBOLS: &str = " \"=()[]{},:;+-*/&|!\t\n";
+    pub const SYMBOLS: &str = " \"\\=()[]{},:;+-*/&|!\t\n";
     let mut in_string = false;
+    let mut is_escape = false;
     for i in 0..str.len() {
         for sym in SYMBOLS.chars() {
             if str.as_bytes()[i] == sym as u8 {
                 /* if in a string, don't put an in-string synbol into the 'ret' list */
-                if !in_string {
-                    ret.push(i as isize);
-                } else if in_string && sym == '"' {
+                if !in_string || (in_string && sym == '"' && !is_escape) {
                     ret.push(i as isize);
                 }
-                if sym == '"' {
+
+                if sym == '"' && !is_escape {
                     in_string = !in_string;
+                }
+                if is_escape && in_string {
+                    is_escape = false;
+                } else if sym == '\\' && in_string {
+                    is_escape = true;
                 }
                 break;
             }
@@ -122,7 +127,7 @@ pub fn generate_token(code: &str) -> Vec<Token> {
         }
     }
 
-    /* delete tokens with meaningLT names */
+    /* delete tokens with meaningless names */
     let mut i = 0;
     while i < tokens.len() {
         if tokens[i].name == " "
@@ -146,6 +151,11 @@ pub fn generate_token(code: &str) -> Vec<Token> {
             tokens[i].r#type = TOKEN_TYPE_NUMBER;
         } else if tokens[i].name == "\"" && tokens[i + 2].name == "\"" {
             tokens[i + 1].r#type = TOKEN_TYPE_STRING;
+            /* replace escape characters */
+            tokens[i + 1].name = tokens[i + 1].name.replace("\\\"", "\"");
+            tokens[i + 1].name = tokens[i + 1].name.replace("\\n", "\n");
+            tokens[i + 1].name = tokens[i + 1].name.replace("\\r", "\r");
+            tokens[i + 1].name = tokens[i + 1].name.replace("\\t", "\t");
             tokens.remove(i + 2);
             tokens.remove(i);
         } else if tokens[i].name.len() == 3
