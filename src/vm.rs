@@ -1,5 +1,6 @@
 use super::vram::VRAM;
 use std::cell::RefCell;
+use std::io::{Read,Write};
 
 const VM_STACK_SIZE: usize = 8 * 1024 * 1024;
 
@@ -139,6 +140,12 @@ impl Param {
             return vm.ram.load(self.value, 8, &value.to_be_bytes());
         }
     }
+    fn is_register(&self) -> bool {
+        if self.r#type == VM_REG_C0 || self.r#type == VM_REG_SP || self.r#type == VM_REG_IP {
+            return true;
+        }
+        false
+    }
 }
 
 #[derive(Clone)]
@@ -220,24 +227,51 @@ impl VM {
             if op == VM_OP_PUSH {
                 let register = Param::from(self);
 
-                self.ram
-                    .load(self.sp, 8, &register.get_value(self).to_be_bytes());
+                if register.is_register() {
+                    self.ram
+                        .load(self.sp, 8, &register.get_value(self).to_be_bytes());
 
-                self.sp -= 8;
+                    self.sp -= 8;
+                }
             }
             /* pop register */
             if op == VM_OP_POP {
                 let mut register = Param::from(self);
 
-                let reg_val = self.ram.dump(self.sp, 8);
-                register.set_value(u64::from_be_bytes(reg_val.try_into().unwrap()), self);
+                if register.is_register() {
+                    let reg_val = self.ram.dump(self.sp, 8);
+                    register.set_value(u64::from_be_bytes(reg_val.try_into().unwrap()), self);
 
-                self.sp -= 8;
+                    self.sp -= 8;
+                }
             }
             /* jmp addr */
             if op == VM_OP_JMP {
                 let addr = Param::from(self);
                 self.ip = addr.get_value(self);
+            }
+            /* in port data */
+            if op == VM_OP_IN {
+                let port = Param::from(self);
+                let mut data = Param::from(self);
+                if port.get_value(self) as u8 == VM_DEV_STDIN {
+                    let mut buf = [0];
+                    std::io::stdin().read(&mut buf).unwrap();
+                    data.set_value(buf[0] as u64, self);
+                }
+            }
+            /* out port data */
+            if op == VM_OP_OUT {
+                let port = Param::from(self);
+                let data = Param::from(self);
+                if port.get_value(self) as u8 == VM_DEV_STDOUT {
+                    let buf = [data.get_value(self) as u8];
+                    std::io::stdout().write(&buf).unwrap();
+                }
+                if port.get_value(self) as u8 == VM_DEV_STDERR {
+                    let buf = [data.get_value(self) as u8];
+                    std::io::stderr().write(&buf).unwrap();
+                }
             }
             /* hal */
             if op == VM_OP_HAL {

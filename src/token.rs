@@ -50,7 +50,7 @@ pub const KEYWORDS: [&str; 14] = [
 ];
 
 /// detect the positions of symbols
-fn get_flag_pos(str: &str) -> Vec<isize> {
+fn get_flag_pos(str: &str) -> Result<Vec<isize>, &str> {
     let mut ret: Vec<isize> = vec![];
     ret.push(-1);
     pub const SYMBOLS: &str = " \"\\=()[]{},:;+-*/&|!\t\n";
@@ -77,7 +77,10 @@ fn get_flag_pos(str: &str) -> Vec<isize> {
         }
     }
     ret.push(str.len() as isize);
-    ret
+    if in_string {
+        return Err("sybmol '\"' doesn't match.");
+    }
+    Ok(ret)
 }
 
 /// detect if a keyword
@@ -103,12 +106,16 @@ fn is_number(str: &str) -> bool {
 /**
  Generate tokens
 */
-pub fn generate_token(code: &str) -> Vec<Token> {
+pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
     let mut tokens: Vec<Token> = vec![];
-    let symbol_list = get_flag_pos(code);
+    let symbol_list;
+    match get_flag_pos(code) {
+        Ok(lis) => symbol_list = lis,
+        Err(err) => return Err(err),
+    }
     let code = format!("{code} ");
     for i in 1..symbol_list.len() {
-        /* single byte sybmol */
+        /* single byte symbol */
         if symbol_list[i] - symbol_list[i - 1] == 1 {
             let mut new_tokens = Token::new();
             new_tokens.name =
@@ -227,5 +234,5 @@ pub fn generate_token(code: &str) -> Vec<Token> {
         i += 1;
     }
 
-    tokens
+    Ok(tokens)
 }
