@@ -1,6 +1,6 @@
 use super::vram::VRAM;
 use std::cell::RefCell;
-use std::io::{Read,Write};
+use std::io::{Read, Write};
 
 const VM_STACK_SIZE: usize = 8 * 1024 * 1024;
 
@@ -18,8 +18,11 @@ pub const VM_OP_POP: u8 = 0x0b;
 pub const VM_OP_CALL: u8 = 0x0c;
 pub const VM_OP_RET: u8 = 0x0d;
 pub const VM_OP_JE: u8 = 0x0e;
-pub const VM_OP_JG: u8 = 0x0f;
-pub const VM_OP_JL: u8 = 0x20;
+pub const VM_OP_JNE: u8 = 0x0f;
+pub const VM_OP_JG: u8 = 0x20;
+pub const VM_OP_JL: u8 = 0x21;
+pub const VM_OP_JNG: u8 = 0x22;
+pub const VM_OP_JNL: u8 = 0x23;
 pub const VM_OP_HAL: u8 = 0x1f;
 
 pub const VM_REG_C0: u8 = 0x20;
@@ -153,6 +156,8 @@ pub struct VM {
     pub c0: u64,
     pub ip: u64,
     pub sp: u64,
+    pub zf: bool,
+    pub cf: bool,
     pub ram: VRAM,
     pub code: Box<RefCell<Vec<u8>>>,
 }
@@ -162,6 +167,8 @@ impl VM {
         VM {
             c0: 0,
             ip: 0,
+            zf: false,
+            cf: false,
             sp: VM_STACK_SIZE as u64,
             ram: VRAM::new(4 * 1024 * 1024 * 1024),
             code: Box::new(RefCell::new(Vec::new())),
@@ -228,10 +235,9 @@ impl VM {
                 let register = Param::from(self);
 
                 if register.is_register() {
+                    self.sp -= 8;
                     self.ram
                         .load(self.sp, 8, &register.get_value(self).to_be_bytes());
-
-                    self.sp -= 8;
                 }
             }
             /* pop register */
@@ -242,13 +248,85 @@ impl VM {
                     let reg_val = self.ram.dump(self.sp, 8);
                     register.set_value(u64::from_be_bytes(reg_val.try_into().unwrap()), self);
 
-                    self.sp -= 8;
+                    self.sp += 8;
+                }
+            }
+            /* cmp val1, val2 */
+            if op == VM_OP_CMP {
+                let val1 = Param::from(self);
+                let val2 = Param::from(self);
+
+                if val1.get_value(self) == val2.get_value(self) {
+                    self.zf = true;
+                    self.cf = false;
+                } else if val1.get_value(self) > val2.get_value(self) {
+                    self.zf = false;
+                    self.cf = false;
+                } else {
+                    self.zf = false;
+                    self.cf = true;
+                }
+            }
+            /* je addr */
+            if op == VM_OP_JE {
+                let addr = Param::from(self);
+                if self.zf {
+                    self.ip = addr.get_value(self);
+                }
+            }
+            /* jne addr */
+            if op == VM_OP_JNE {
+                let addr = Param::from(self);
+                if !self.zf {
+                    self.ip = addr.get_value(self);
+                }
+            }
+            /* jg addr */
+            if op == VM_OP_JG {
+                let addr = Param::from(self);
+                if !self.zf && !self.cf {
+                    self.ip = addr.get_value(self);
+                }
+            }
+            /* jl addr */
+            if op == VM_OP_JL {
+                let addr = Param::from(self);
+                if !self.zf && self.cf {
+                    self.ip = addr.get_value(self);
+                }
+            }
+            /* jng addr */
+            if op == VM_OP_JNG {
+                let addr = Param::from(self);
+                if self.zf || self.zf && self.cf {
+                    self.ip = addr.get_value(self);
+                }
+            }
+            /* jnl addr */
+            if op == VM_OP_JNL {
+                let addr = Param::from(self);
+                if self.zf || !self.zf && self.cf {
+                    self.ip = addr.get_value(self);
                 }
             }
             /* jmp addr */
             if op == VM_OP_JMP {
                 let addr = Param::from(self);
                 self.ip = addr.get_value(self);
+            }
+            /* call addr */
+            if op == VM_OP_CALL {
+                let addr = Param::from(self);
+                /* push IP */
+                self.sp -= 8;
+                self.ram.load(self.sp, 8, &self.ip.to_be_bytes());
+                self.ip = addr.get_value(self);
+            }
+            /* ret */
+            if op == VM_OP_RET {
+                /* pop IP */
+                self.ip = u64::from_be_bytes(self.ram.dump(self.sp, 8).try_into().unwrap());
+                self.sp += 8;
             }
             /* in port data */
             if op == VM_OP_IN {
