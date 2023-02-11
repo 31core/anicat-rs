@@ -4,6 +4,7 @@ use std::io::{Read, Write};
 
 const VM_STACK_SIZE: usize = 8 * 1024 * 1024;
 
+/// op codes (0x01 - 0x14)
 pub const VM_OP_MOV: u8 = 0x01;
 pub const VM_OP_IN: u8 = 0x02;
 pub const VM_OP_OUT: u8 = 0x03;
@@ -19,16 +20,16 @@ pub const VM_OP_CALL: u8 = 0x0c;
 pub const VM_OP_RET: u8 = 0x0d;
 pub const VM_OP_JE: u8 = 0x0e;
 pub const VM_OP_JNE: u8 = 0x0f;
-pub const VM_OP_JG: u8 = 0x20;
-pub const VM_OP_JL: u8 = 0x21;
-pub const VM_OP_JNG: u8 = 0x22;
-pub const VM_OP_JNL: u8 = 0x23;
-pub const VM_OP_HAL: u8 = 0x1f;
+pub const VM_OP_JG: u8 = 0x10;
+pub const VM_OP_JL: u8 = 0x11;
+pub const VM_OP_JNG: u8 = 0x12;
+pub const VM_OP_JNL: u8 = 0x13;
+pub const VM_OP_HAL: u8 = 0x14;
 
+/// value types (0x20 - 0x32)
 pub const VM_REG_C0: u8 = 0x20;
 pub const VM_REG_SP: u8 = 0x23;
 pub const VM_REG_IP: u8 = 0x24;
-pub const VM_TYPE_REG: u8 = 0x25;
 pub const VM_TYPE_VAL8: u8 = 0x26;
 pub const VM_TYPE_VAL16: u8 = 0x27;
 pub const VM_TYPE_VAL32: u8 = 0x28;
@@ -37,11 +38,28 @@ pub const VM_TYPE_MEM8: u8 = 0x2a;
 pub const VM_TYPE_MEM16: u8 = 0x2b;
 pub const VM_TYPE_MEM32: u8 = 0x2c;
 pub const VM_TYPE_MEM64: u8 = 0x2d;
+pub const VM_TYPE_RMEM8: u8 = 0x2e;
+pub const VM_TYPE_RMEM16: u8 = 0x30;
+pub const VM_TYPE_RMEM32: u8 = 0x31;
+pub const VM_TYPE_RMEM64: u8 = 0x32;
 
 pub const VM_DEV_STDIN: u8 = 0;
 pub const VM_DEV_STDOUT: u8 = 1;
 pub const VM_DEV_STDERR: u8 = 2;
-
+/**
+ * Parse type from bytes slice.  
+ * `type`:  
+ * * `VM_TYPE_MEM`: size of memory
+ * * `VM_TYPE_RMEM`: register
+ * * `VM_TYPE_VAL`: size of value
+ * * `VM_TYPE_REG`: register type
+ *
+ * `value`:  
+ * * `VM_TYPE_MEM`: memory address
+ * * `VM_TYPE_RMEM`: memory address from register
+ * * `VM_TYPE_VAL`: value
+ * * `VM_TYPE_REG`: register value
+ */
 #[derive(Clone)]
 struct Param {
     r#type: u8,
@@ -51,7 +69,7 @@ struct Param {
 impl Param {
     fn from(vm: &mut VM) -> Self {
         let code = vm.code.borrow_mut();
-        let param_type = code[vm.ip as usize];
+        let mut param_type = code[vm.ip as usize];
         vm.ip += 1;
 
         let mut value: u64 = 0;
@@ -86,9 +104,29 @@ impl Param {
             || param_type == VM_TYPE_MEM32
             || param_type == VM_TYPE_MEM64
         {
+            /* copy 64-bit address */
             value =
                 u64::from_be_bytes(code[vm.ip as usize..vm.ip as usize + 8].try_into().unwrap());
             vm.ip += 8;
+        }
+
+        if param_type == VM_TYPE_RMEM8
+            || param_type == VM_TYPE_RMEM16
+            || param_type == VM_TYPE_RMEM32
+            || param_type == VM_TYPE_RMEM64
+        {
+            let register = code[vm.ip as usize];
+            if register == VM_REG_C0 {
+                value = vm.c0;
+            }
+            match param_type {
+                VM_TYPE_RMEM8 => param_type = VM_TYPE_MEM8,
+                VM_TYPE_RMEM16 => param_type = VM_TYPE_MEM16,
+                VM_TYPE_RMEM32 => param_type = VM_TYPE_MEM32,
+                VM_TYPE_RMEM64 => param_type = VM_TYPE_MEM64,
+                _ => {}
+            }
+            vm.ip += 1;
         }
 
         Param {

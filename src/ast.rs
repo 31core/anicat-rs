@@ -1,5 +1,5 @@
 use super::token::*;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 #[derive(Clone)]
@@ -19,11 +19,19 @@ impl AstNode {
     }
     /// push a subnode
     pub fn push(&mut self, node: Rc<RefCell<AstNode>>) {
-        self.nodes.push(node.clone());
+        self.nodes.push(Rc::clone(&node));
     }
     /// remove a subnode
     pub fn remove(&mut self, index: usize) {
         self.nodes.remove(index);
+    }
+    /// get mutable reference of refcell subnode
+    pub fn node_mut(&self, index: usize) -> RefMut<'_, AstNode> {
+        self.nodes[index].borrow_mut()
+    }
+    /// get ref of refcell subnode
+    pub fn node(&self, index: usize) -> Ref<'_, AstNode> {
+        self.nodes[index].borrow()
     }
     pub fn from_tokens<T>(tokens: &mut T) -> Self
     where
@@ -102,84 +110,84 @@ impl AstNode {
                if expression
                elif expression
             */
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_IF
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_ELIF
+            if top_ast.node(node_i).r#type == AST_TYPE_IF
+                || top_ast.node(node_i).r#type == AST_TYPE_ELIF
             {
                 /* add param node */
-                let param_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(param_node);
+                let param_node = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(param_node);
                 top_ast.remove(node_i + 1);
 
                 /* add code block */
-                let code_block_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(code_block_node);
+                let code_block_node = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(code_block_node);
                 top_ast.remove(node_i + 1);
             }
             /* function declaration */
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_FUNC_DEF {
+            if top_ast.node(node_i).r#type == AST_TYPE_FUNC_DEF {
                 /* add identifier node */
-                let id_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(id_node);
+                let id_node = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(id_node);
                 top_ast.remove(node_i + 1);
 
                 /* add param node */
-                let param_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(param_node);
+                let param_node = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(param_node);
                 top_ast.remove(node_i + 1);
 
                 /* function with a return type */
-                if top_ast.nodes[node_i + 1].borrow().data == "->" {
+                if top_ast.node(node_i + 1).data == "->" {
                     top_ast.remove(node_i + 1); //remove "->" node
                                                 /* add code block */
-                    let code_block = top_ast.nodes[node_i + 2].clone();
-                    top_ast.nodes[node_i].borrow_mut().push(code_block);
+                    let code_block = Rc::clone(&top_ast.nodes[node_i + 2]);
+                    top_ast.node_mut(node_i).push(code_block);
 
                     /* add ret type */
-                    let ret_type = top_ast.nodes[node_i + 1].clone();
+                    let ret_type = Rc::clone(&top_ast.nodes[node_i + 1]);
                     ret_type.borrow_mut().r#type = AST_TYPE_VAR_TYPE;
-                    top_ast.nodes[node_i].borrow_mut().push(ret_type);
+                    top_ast.node_mut(node_i).push(ret_type);
                     top_ast.remove(node_i + 1);
                     top_ast.remove(node_i + 1);
                 } else {
-                    let code_block = top_ast.nodes[node_i + 1].clone();
-                    top_ast.nodes[node_i].borrow_mut().push(code_block);
+                    let code_block = Rc::clone(&top_ast.nodes[node_i + 1]);
+                    top_ast.node_mut(node_i).push(code_block);
                     top_ast.remove(node_i + 1);
                 }
             }
             /* call a function */
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_IDENTIFIER
+            if top_ast.node(node_i).r#type == AST_TYPE_IDENTIFIER
                 && node_i < top_ast.nodes.len() - 1
-                && top_ast.nodes[node_i + 1].borrow().r#type == AST_TYPE_PARAMS
+                && top_ast.node(node_i + 1).r#type == AST_TYPE_PARAMS
             {
                 let mut func_call_node = AstNode::new();
                 func_call_node.r#type = AST_TYPE_FUNC_CALL;
-                func_call_node.push(top_ast.nodes[node_i].clone()); //add identifier node
-                func_call_node.push(top_ast.nodes[node_i + 1].clone()); //add param node
+                func_call_node.push(Rc::clone(&top_ast.nodes[node_i])); //add identifier node
+                func_call_node.push(Rc::clone(&top_ast.nodes[node_i + 1])); //add param node
                 top_ast.nodes[node_i] = Rc::new(RefCell::new(func_call_node));
                 top_ast.remove(node_i + 1);
             }
             /* declare a variable */
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_VAR_DECLARE {
+            if top_ast.node(node_i).r#type == AST_TYPE_VAR_DECLARE {
                 /* add identifier node */
-                let id_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(id_node);
+                let id_node = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(id_node);
                 top_ast.remove(node_i + 1);
             }
             /* index an array */
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_INDEX {
-                let index = top_ast.nodes[node_i].borrow().nodes[0].clone();
-                let array = top_ast.nodes[node_i - 1].clone();
+            if top_ast.node(node_i).r#type == AST_TYPE_INDEX {
+                let index = Rc::clone(&top_ast.node(node_i).nodes[0]);
+                let array = Rc::clone(&top_ast.nodes[node_i - 1]);
 
-                top_ast.nodes[node_i].borrow_mut().nodes.pop();
-                top_ast.nodes[node_i].borrow_mut().push(array);
-                top_ast.nodes[node_i].borrow_mut().push(index);
+                top_ast.node_mut(node_i).nodes.pop();
+                top_ast.node_mut(node_i).push(array);
+                top_ast.node_mut(node_i).push(index);
                 top_ast.remove(node_i - 1);
                 node_i -= 1;
             }
-            if top_ast.nodes[node_i].borrow().data == ":" {
-                let type_node = top_ast.nodes[node_i + 1].clone();
+            if top_ast.node(node_i).data == ":" {
+                let type_node = Rc::clone(&top_ast.nodes[node_i + 1]);
                 type_node.borrow_mut().r#type = AST_TYPE_VAR_TYPE;
-                top_ast.nodes[node_i - 1].borrow_mut().push(type_node);
+                top_ast.node_mut(node_i - 1).push(type_node);
                 top_ast.remove(node_i);
                 top_ast.remove(node_i);
                 node_i -= 1;
@@ -190,13 +198,13 @@ impl AstNode {
         let mut node_i = 0;
         while node_i < top_ast.nodes.len() {
             /* operations */
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_ADD
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_SUB
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_MUL
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_DIV
+            if top_ast.node(node_i).r#type == AST_TYPE_ADD
+                || top_ast.node(node_i).r#type == AST_TYPE_SUB
+                || top_ast.node(node_i).r#type == AST_TYPE_MUL
+                || top_ast.node(node_i).r#type == AST_TYPE_DIV
             {
-                let left = top_ast.nodes[node_i - 1].clone();
-                let right = top_ast.nodes[node_i + 1].clone();
+                let left = Rc::clone(&top_ast.nodes[node_i - 1]);
+                let right = Rc::clone(&top_ast.nodes[node_i + 1]);
 
                 /*
                 Last node is ('+' or '-') and this node is ('*' or '/')
@@ -208,10 +216,10 @@ impl AstNode {
                  / \
                 A   B
                 */
-                if (top_ast.nodes[node_i].borrow().r#type == AST_TYPE_MUL
-                    || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_DIV)
-                    && (top_ast.nodes[node_i - 1].borrow().r#type == AST_TYPE_ADD
-                        || top_ast.nodes[node_i - 1].borrow().r#type == AST_TYPE_SUB)
+                if (top_ast.node(node_i).r#type == AST_TYPE_MUL
+                    || top_ast.node(node_i).r#type == AST_TYPE_DIV)
+                    && (top_ast.node(node_i - 1).r#type == AST_TYPE_ADD
+                        || top_ast.node(node_i - 1).r#type == AST_TYPE_SUB)
                 {
                     /*
                     *'s right node point to B
@@ -219,9 +227,9 @@ impl AstNode {
                      / \ /
                     A   B
                     */
-                    top_ast.nodes[node_i]
-                        .borrow_mut()
-                        .push(left.borrow().nodes[1].clone());
+                    top_ast
+                        .node_mut(node_i)
+                        .push(Rc::clone(&left.borrow().nodes[1]));
                     /*
                     *'s right node point to C
                             |\
@@ -229,7 +237,7 @@ impl AstNode {
                      / \ / \+
                     A   B
                     */
-                    top_ast.nodes[node_i].borrow_mut().push(right);
+                    top_ast.node_mut(node_i).push(right);
                     /*
                     +'s right node point to *
                       +
@@ -238,11 +246,11 @@ impl AstNode {
                        / \
                       B   C
                     */
-                    top_ast.nodes[node_i - 1].borrow_mut().nodes[1] = top_ast.nodes[node_i].clone();
-                    top_ast.nodes[node_i] = top_ast.nodes[node_i - 1].clone();
+                    top_ast.node_mut(node_i - 1).nodes[1] = Rc::clone(&top_ast.nodes[node_i]);
+                    top_ast.nodes[node_i] = Rc::clone(&top_ast.nodes[node_i - 1]);
                 } else {
-                    top_ast.nodes[node_i].borrow_mut().push(left);
-                    top_ast.nodes[node_i].borrow_mut().push(right);
+                    top_ast.node_mut(node_i).push(left);
+                    top_ast.node_mut(node_i).push(right);
                 }
 
                 /* remove left and right */
@@ -255,17 +263,17 @@ impl AstNode {
         /* merge '==' '!=' '<' '>' '<=' '>=' nodes */
         let mut node_i = 0;
         while node_i < top_ast.nodes.len() {
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_EQU
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_NEQU
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_LT
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_GT
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_LE
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_GE
+            if top_ast.node(node_i).r#type == AST_TYPE_EQU
+                || top_ast.node(node_i).r#type == AST_TYPE_NEQU
+                || top_ast.node(node_i).r#type == AST_TYPE_LT
+                || top_ast.node(node_i).r#type == AST_TYPE_GT
+                || top_ast.node(node_i).r#type == AST_TYPE_LE
+                || top_ast.node(node_i).r#type == AST_TYPE_GE
             {
-                let left = top_ast.nodes[node_i - 1].clone();
-                let right = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(left);
-                top_ast.nodes[node_i].borrow_mut().push(right);
+                let left = Rc::clone(&top_ast.nodes[node_i - 1]);
+                let right = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(left);
+                top_ast.node_mut(node_i).push(right);
                 /* remove left and right */
                 top_ast.remove(node_i - 1);
                 top_ast.remove(node_i);
@@ -276,13 +284,13 @@ impl AstNode {
         /* merge '&&' '||' nodes */
         let mut node_i = 0;
         while node_i < top_ast.nodes.len() {
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_AND
-                || top_ast.nodes[node_i].borrow().r#type == AST_TYPE_OR
+            if top_ast.node(node_i).r#type == AST_TYPE_AND
+                || top_ast.node(node_i).r#type == AST_TYPE_OR
             {
-                let left = top_ast.nodes[node_i - 1].clone();
-                let right = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(left);
-                top_ast.nodes[node_i].borrow_mut().push(right);
+                let left = Rc::clone(&top_ast.nodes[node_i - 1]);
+                let right = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(left);
+                top_ast.node_mut(node_i).push(right);
                 /* remove left and right */
                 top_ast.remove(node_i - 1);
                 top_ast.remove(node_i);
@@ -293,16 +301,16 @@ impl AstNode {
         /* handle 'return' '=' node */
         let mut node_i = 0;
         while node_i < top_ast.nodes.len() {
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_RETURN {
-                let this_node = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(this_node);
+            if top_ast.node(node_i).r#type == AST_TYPE_RETURN {
+                let this_node = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(this_node);
                 top_ast.remove(node_i + 1);
             }
-            if top_ast.nodes[node_i].borrow().r#type == AST_TYPE_VAR_SET_VALUE {
-                let left = top_ast.nodes[node_i - 1].clone();
-                let right = top_ast.nodes[node_i + 1].clone();
-                top_ast.nodes[node_i].borrow_mut().push(left);
-                top_ast.nodes[node_i].borrow_mut().push(right);
+            if top_ast.node(node_i).r#type == AST_TYPE_VAR_SET_VALUE {
+                let left = Rc::clone(&top_ast.nodes[node_i - 1]);
+                let right = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(left);
+                top_ast.node_mut(node_i).push(right);
                 /* remove left and right */
                 top_ast.remove(node_i - 1);
                 top_ast.remove(node_i);
