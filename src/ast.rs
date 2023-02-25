@@ -33,6 +33,12 @@ impl AstNode {
     pub fn node(&self, index: usize) -> Ref<'_, AstNode> {
         self.nodes[index].borrow()
     }
+    pub fn is_operator(&self) -> bool {
+        self.r#type == AST_TYPE_ADD
+            || self.r#type == AST_TYPE_SUB
+            || self.r#type == AST_TYPE_MUL
+            || self.r#type == AST_TYPE_DIV
+    }
     pub fn from_tokens<T>(tokens: &mut T) -> Self
     where
         T: Iterator<Item = Token>,
@@ -198,11 +204,7 @@ impl AstNode {
         let mut node_i = 0;
         while node_i < top_ast.nodes.len() {
             /* operations */
-            if top_ast.node(node_i).r#type == AST_TYPE_ADD
-                || top_ast.node(node_i).r#type == AST_TYPE_SUB
-                || top_ast.node(node_i).r#type == AST_TYPE_MUL
-                || top_ast.node(node_i).r#type == AST_TYPE_DIV
-            {
+            if top_ast.node(node_i).is_operator() {
                 let left = Rc::clone(&top_ast.nodes[node_i - 1]);
                 let right = Rc::clone(&top_ast.nodes[node_i + 1]);
 

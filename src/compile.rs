@@ -1,3 +1,4 @@
+use super::assembly::*;
 use super::ast::*;
 use super::vm::*;
 use std::cell::RefCell;
@@ -49,7 +50,7 @@ impl VariableTypes {
 }
 
 #[derive(Debug)]
-struct Variable {
+pub struct Variable {
     name: String,
     size: usize,
     r#type: VariableTypes,
@@ -79,7 +80,6 @@ impl Variable {
      * Some(RefCell { value: Variable { name: "b", size: 2, type: Uint16, offset: 12, previous: Some(RefCell { value: Variable { name: "a", size: 1, type: Uint8, offset: 14, previous: None } }) } })
      * ```
      */
-    #[allow(dead_code)]
     fn lookup(var: Option<Rc<RefCell<Variable>>>, id: &str) -> Option<Rc<RefCell<Variable>>> {
         let mut var = var;
         loop {
@@ -94,17 +94,223 @@ impl Variable {
             }
         }
     }
+    fn modify_offset(
+        var: Option<Rc<RefCell<Variable>>>,
+        offset: isize,
+    ) -> Option<Rc<RefCell<Variable>>> {
+        let mut var = var;
+        let mut last_var = None;
+        loop {
+            match var {
+                Some(v) => {
+                    if offset > 0 {
+                        v.borrow_mut().offset += offset as usize;
+                    } else {
+                        let offset: usize = (offset * -1).try_into().unwrap();
+                        /* out of life time */
+                        if offset > v.borrow().offset {
+                            last_var = v.borrow().previous.clone();
+                        } else {
+                            v.borrow_mut().offset -= offset;
+                        }
+                    }
+
+                    var = v.borrow().previous.clone();
+                }
+                None => return last_var,
+            }
+        }
+    }
 }
 
-pub fn compile(byte_code: &mut Vec<u8>, ast: &AstNode) -> Result<(), ()> {
-    let mut variable: Option<Rc<RefCell<Variable>>> = None;
+/**
+ * compile for operating tree  
+ * **NOTE**: The result will be saved to C0
+ */
+fn compile_op(
+    byte_code: &mut Vec<u8>,
+    ast: &Rc<RefCell<AstNode>>,
+    variable: &Option<Rc<RefCell<Variable>>>,
+) {
+    /* left value */
+    if ast.borrow().node(0).r#type == AST_TYPE_VALUE {
+        /*
+        mov c0, val
+        */
+        let val: u64 = ast.borrow().node(0).data.parse().unwrap();
+        byte_code.extend(assemblize(
+            VM_OP_MOV,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Value64(val),
+            ],
+        ));
+    }
+    /* variable */
+    else if ast.borrow().node(0).r#type == AST_TYPE_IDENTIFIER {
+        let mut offset = 0;
+        //let mut size = 0;
+        if let Some(var) = Variable::lookup(variable.clone(), &ast.borrow().node(0).data) {
+            offset += var.borrow().offset;
+            //size = var.borrow().size;
+        }
+
+        /*
+        mov ar, sp
+        add ar, val16: offset
+        load c0, ar
+        */
+        byte_code.extend(assemblize(
+            VM_OP_MOV,
+            &[
+                AssemblyValue::Register(VM_REG_AR),
+                AssemblyValue::Register(VM_REG_SP),
+            ],
+        ));
+
+        byte_code.extend(assemblize(
+            VM_OP_ADD,
+            &[
+                AssemblyValue::Register(VM_REG_AR),
+                AssemblyValue::Value16(offset as u16),
+            ],
+        ));
+
+        byte_code.extend(assemblize(
+            VM_OP_LOAD64,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Register(VM_REG_AR),
+            ],
+        ));
+    }
+    /* operating result */
+    else if ast.borrow().node(0).is_operator() {
+        compile_op(byte_code, &ast.borrow().nodes[0], variable);
+    }
+
+    /* right value */
+    /* constant */
+    if ast.borrow().node(1).r#type == AST_TYPE_VALUE {
+        let val: u64 = ast.borrow().node(1).data.parse().unwrap();
+        /* mov c1, val64: val */
+        byte_code.extend(assemblize(
+            VM_OP_MOV,
+            &[
+                AssemblyValue::Register(VM_REG_C1),
+                AssemblyValue::Value64(val),
+            ],
+        ));
+    }
+    /* variable */
+    else if ast.borrow().node(1).r#type == AST_TYPE_IDENTIFIER {
+        let mut offset = 0;
+        //let mut size = 0;
+        if let Some(var) = Variable::lookup(variable.clone(), &ast.borrow().node(0).data) {
+            offset += var.borrow().offset;
+            //size = var.borrow().size;
+        }
+
+        /*
+        mov ar, sp
+        add ar, [offset]
+        load ar, c3
+        */
+        byte_code.extend(assemblize(
+            VM_OP_MOV,
+            &[
+                AssemblyValue::Register(VM_REG_AR),
+                AssemblyValue::Register(VM_REG_SP),
+            ],
+        ));
+
+        byte_code.extend(assemblize(
+            VM_OP_ADD,
+            &[
+                AssemblyValue::Register(VM_REG_AR),
+                AssemblyValue::Value16(offset as u16),
+            ],
+        ));
+
+        byte_code.extend(assemblize(
+            VM_OP_LOAD64,
+            &[
+                AssemblyValue::Register(VM_REG_C1),
+                AssemblyValue::Register(VM_REG_AR),
+            ],
+        ));
+    }
+    /* operating result */
+    else if ast.borrow().node(1).is_operator() {
+        /* push c0 */
+        byte_code.extend(assemblize(
+            VM_OP_PUSH,
+            &[AssemblyValue::Register(VM_REG_C0)],
+        ));
+        compile_op(byte_code, &ast.borrow().nodes[1], variable);
+        /* mov c1, c0 */
+        byte_code.extend(assemblize(
+            VM_OP_MOV,
+            &[
+                AssemblyValue::Register(VM_REG_C1),
+                AssemblyValue::Register(VM_REG_C0),
+            ],
+        ));
+        /* pop c0 */
+        byte_code.extend(assemblize(VM_OP_POP, &[AssemblyValue::Register(VM_REG_C0)]));
+    }
+    /* [add/sub/mul/div] c0, c1 */
+    match ast.borrow().r#type {
+        AST_TYPE_ADD => byte_code.extend(assemblize(
+            VM_OP_ADD,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Register(VM_REG_C1),
+            ],
+        )),
+        AST_TYPE_SUB => byte_code.extend(assemblize(
+            VM_OP_SUB,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Register(VM_REG_C1),
+            ],
+        )),
+        AST_TYPE_MUL => byte_code.extend(assemblize(
+            VM_OP_MUL,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Register(VM_REG_C1),
+            ],
+        )),
+        AST_TYPE_DIV => byte_code.extend(assemblize(
+            VM_OP_DIV,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Register(VM_REG_C1),
+            ],
+        )),
+        _ => {}
+    }
+}
+
+/**
+ * Compile to byte code
+ * 
+ * Example:
+ * ```
+ * let mut byte_code = Vec::new();
+ * compile::compile(&mut byte_code, &ast, None);
+ * ```
+*/
+pub fn compile(
+    byte_code: &mut Vec<u8>,
+    ast: &AstNode,
+    variable: Option<Rc<RefCell<Variable>>>,
+) -> Option<Rc<RefCell<Variable>>> {
+    let mut variable = variable;
+    let mut variable_size = 0;
     for node in &ast.nodes {
         if node.borrow().r#type == AST_TYPE_VAR_DECLARE {
-            /* sub sp, u8: [var size] */
-            byte_code.push(VM_OP_SUB);
-            byte_code.push(VM_REG_SP);
-            byte_code.push(VM_TYPE_VAL8);
-
             let var = Rc::new(RefCell::new(Variable::new()));
             var.borrow_mut().name = node.borrow().nodes[0].borrow().data.clone();
             var.borrow_mut().r#type =
@@ -112,28 +318,41 @@ pub fn compile(byte_code: &mut Vec<u8>, ast: &AstNode) -> Result<(), ()> {
             {
                 let size = var.borrow().r#type.get_size();
                 var.borrow_mut().size = size;
-                byte_code.push(size as u8);
+                /* sub sp, u16: [var size] */
+                byte_code.extend(assemblize(
+                    VM_OP_SUB,
+                    &[
+                        AssemblyValue::Register(VM_REG_SP),
+                        AssemblyValue::Value16(size as u16),
+                    ],
+                ));
+                variable_size += size;
             }
             match &variable {
                 Some(previous_var) => {
                     var.borrow_mut().previous = Some(Rc::clone(previous_var));
-                    let mut this_var = Some(Rc::clone(previous_var));
                     variable = Some(Rc::clone(&var));
 
                     /* add offset of previous variables */
-                    loop {
-                        match this_var {
-                            Some(v) => {
-                                v.borrow_mut().offset += var.borrow().size;
-                                this_var = v.borrow().previous.clone();
-                            }
-                            None => break,
-                        }
-                    }
+                    let size = var.borrow().size as isize;
+                    Variable::modify_offset(variable.clone(), size);
                 }
                 None => variable = Some(var),
             }
         }
+        if node.borrow().is_operator() {
+            compile_op(byte_code, node, &variable);
+        }
     }
-    Ok(())
+
+    /* add sp, val16: variable_size */
+    byte_code.extend(assemblize(
+        VM_OP_ADD,
+        &[
+            AssemblyValue::Register(VM_REG_SP),
+            AssemblyValue::Value16(variable_size as u16),
+        ],
+    ));
+    variable = Variable::modify_offset(variable.clone(), variable_size as isize * -1);
+    variable
 }

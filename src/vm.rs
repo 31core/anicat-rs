@@ -1,3 +1,4 @@
+use super::assembly::AssemblyValue;
 use super::vram::VRAM;
 use std::cell::RefCell;
 use std::io::{Read, Write};
@@ -24,24 +25,33 @@ pub const VM_OP_JG: u8 = 0x10;
 pub const VM_OP_JL: u8 = 0x11;
 pub const VM_OP_JNG: u8 = 0x12;
 pub const VM_OP_JNL: u8 = 0x13;
-pub const VM_OP_HAL: u8 = 0x14;
+pub const VM_OP_LOAD8: u8 = 0x14;
+pub const VM_OP_LOAD16: u8 = 0x15;
+pub const VM_OP_LOAD32: u8 = 0x16;
+pub const VM_OP_LOAD64: u8 = 0x17;
+pub const VM_OP_STORE8: u8 = 0x18;
+pub const VM_OP_STORE16: u8 = 0x19;
+pub const VM_OP_STORE32: u8 = 0x1a;
+pub const VM_OP_STORE64: u8 = 0x1b;
+pub const VM_OP_HAL: u8 = 0x1f;
 
-/// value types (0x20 - 0x32)
 pub const VM_REG_C0: u8 = 0x20;
-pub const VM_REG_SP: u8 = 0x23;
-pub const VM_REG_IP: u8 = 0x24;
-pub const VM_TYPE_VAL8: u8 = 0x26;
-pub const VM_TYPE_VAL16: u8 = 0x27;
-pub const VM_TYPE_VAL32: u8 = 0x28;
-pub const VM_TYPE_VAL64: u8 = 0x29;
-pub const VM_TYPE_MEM8: u8 = 0x2a;
-pub const VM_TYPE_MEM16: u8 = 0x2b;
-pub const VM_TYPE_MEM32: u8 = 0x2c;
-pub const VM_TYPE_MEM64: u8 = 0x2d;
-pub const VM_TYPE_RMEM8: u8 = 0x2e;
-pub const VM_TYPE_RMEM16: u8 = 0x30;
-pub const VM_TYPE_RMEM32: u8 = 0x31;
-pub const VM_TYPE_RMEM64: u8 = 0x32;
+pub const VM_REG_C1: u8 = 0x21;
+pub const VM_REG_C2: u8 = 0x22;
+pub const VM_REG_C3: u8 = 0x23;
+pub const VM_REG_SP: u8 = 0x24;
+pub const VM_REG_IP: u8 = 0x25;
+pub const VM_REG_AR: u8 = 0x26; // Adress Register
+
+/**
+ * value types (0x20 - 0x32)
+ * This takes 3-bit
+ */
+pub const VM_TYPE_VAL8: u8 = 1;
+pub const VM_TYPE_VAL16: u8 = 2;
+pub const VM_TYPE_VAL32: u8 = 3;
+pub const VM_TYPE_VAL64: u8 = 4;
+pub const VM_TYPE_REG: u8 = 5;
 
 pub const VM_DEV_STDIN: u8 = 0;
 pub const VM_DEV_STDOUT: u8 = 1;
@@ -60,140 +70,85 @@ pub const VM_DEV_STDERR: u8 = 2;
  * * `VM_TYPE_VAL`: value
  * * `VM_TYPE_REG`: register value
  */
-#[derive(Clone)]
-struct Param {
-    r#type: u8,
-    value: u64,
+#[derive(Clone, Debug)]
+struct OPcode {
+    op: u8,
+    values: Vec<AssemblyValue>,
 }
 
-impl Param {
+impl OPcode {
     fn from(vm: &mut VM) -> Self {
         let code = vm.code.borrow_mut();
-        let mut param_type = code[vm.ip as usize];
-        vm.ip += 1;
+        let opcode =
+            u16::from_be_bytes(code[vm.ip as usize..vm.ip as usize + 2].try_into().unwrap());
+        let op = (opcode >> 9) as u8;
+        let mut values = Vec::new();
 
-        let mut value: u64 = 0;
-        match param_type {
-            VM_TYPE_VAL8 => {
-                value = code[vm.ip as usize] as u64;
-                vm.ip += 1;
-            }
-            VM_TYPE_VAL16 => {
-                value = u16::from_be_bytes(
-                    code[vm.ip as usize..vm.ip as usize + 2].try_into().unwrap(),
-                ) as u64;
-                vm.ip += 2;
-            }
-            VM_TYPE_VAL32 => {
-                value = u32::from_be_bytes(
-                    code[vm.ip as usize..vm.ip as usize + 4].try_into().unwrap(),
-                ) as u64;
-                vm.ip += 4;
-            }
-            VM_TYPE_VAL64 => {
-                value = u64::from_be_bytes(
-                    code[vm.ip as usize..vm.ip as usize + 8].try_into().unwrap(),
-                );
-                vm.ip += 8;
-            }
-            _ => {}
-        }
+        vm.ip += 2;
 
-        if param_type == VM_TYPE_MEM8
-            || param_type == VM_TYPE_MEM16
-            || param_type == VM_TYPE_MEM32
-            || param_type == VM_TYPE_MEM64
-        {
-            /* copy 64-bit address */
-            value =
-                u64::from_be_bytes(code[vm.ip as usize..vm.ip as usize + 8].try_into().unwrap());
-            vm.ip += 8;
-        }
+        for i in 1..=3 {
+            let vtype = (opcode >> 3 * (3 - i) & 0b111) as u8;
 
-        if param_type == VM_TYPE_RMEM8
-            || param_type == VM_TYPE_RMEM16
-            || param_type == VM_TYPE_RMEM32
-            || param_type == VM_TYPE_RMEM64
-        {
-            let register = code[vm.ip as usize];
-            if register == VM_REG_C0 {
-                value = vm.c0;
-            }
-            match param_type {
-                VM_TYPE_RMEM8 => param_type = VM_TYPE_MEM8,
-                VM_TYPE_RMEM16 => param_type = VM_TYPE_MEM16,
-                VM_TYPE_RMEM32 => param_type = VM_TYPE_MEM32,
-                VM_TYPE_RMEM64 => param_type = VM_TYPE_MEM64,
+            match vtype {
+                VM_TYPE_VAL8 => {
+                    let value = code[vm.ip as usize];
+                    values.push(AssemblyValue::Value8(value));
+                    vm.ip += 1;
+                }
+                VM_TYPE_VAL16 => {
+                    let value = u16::from_be_bytes(
+                        code[vm.ip as usize..vm.ip as usize + 2].try_into().unwrap(),
+                    );
+                    values.push(AssemblyValue::Value16(value));
+                    vm.ip += 2;
+                }
+                VM_TYPE_VAL32 => {
+                    let value = u32::from_be_bytes(
+                        code[vm.ip as usize..vm.ip as usize + 4].try_into().unwrap(),
+                    );
+                    values.push(AssemblyValue::Value32(value));
+                    vm.ip += 4;
+                }
+                VM_TYPE_VAL64 => {
+                    let value = u64::from_be_bytes(
+                        code[vm.ip as usize..vm.ip as usize + 8].try_into().unwrap(),
+                    );
+                    values.push(AssemblyValue::Value64(value));
+                    vm.ip += 8;
+                }
+                VM_TYPE_REG => {
+                    let value = code[vm.ip as usize];
+                    values.push(AssemblyValue::Register(value));
+                    vm.ip += 1;
+                }
                 _ => {}
             }
-            vm.ip += 1;
         }
 
-        Param {
-            r#type: param_type,
-            value,
-        }
+        OPcode { op, values }
     }
-    fn get_value(&self, vm: &VM) -> u64 {
-        if self.r#type == VM_TYPE_VAL8
-            || self.r#type == VM_TYPE_VAL16
-            || self.r#type == VM_TYPE_VAL32
-            || self.r#type == VM_TYPE_VAL64
-        {
-            return self.value;
+    fn get_value(&self, index: usize, vm: &VM) -> u64 {
+        match self.values[index] {
+            AssemblyValue::Register(r) => return vm.get_register(r),
+            AssemblyValue::Value8(v) => return v as u64,
+            AssemblyValue::Value16(v) => return v as u64,
+            AssemblyValue::Value32(v) => return v as u64,
+            AssemblyValue::Value64(v) => return v,
         }
-        match self.r#type {
-            VM_REG_C0 => return vm.c0,
-            VM_REG_IP => return vm.ip,
-            VM_REG_SP => return vm.sp,
-            _ => {}
-        }
-        /* get value from vram */
-        if self.r#type == VM_TYPE_MEM8 {
-            return u8::from_be_bytes(vm.ram.dump(self.value, 1).try_into().unwrap()) as u64;
-        } else if self.r#type == VM_TYPE_MEM16 {
-            return u16::from_be_bytes(vm.ram.dump(self.value, 2).try_into().unwrap()) as u64;
-        } else if self.r#type == VM_TYPE_MEM32 {
-            return u32::from_be_bytes(vm.ram.dump(self.value, 4).try_into().unwrap()) as u64;
-        } else if self.r#type == VM_TYPE_MEM64 {
-            return u64::from_be_bytes(vm.ram.dump(self.value, 8).try_into().unwrap()) as u64;
-        }
-        0
-    }
-    fn set_value(&mut self, value: u64, vm: &mut VM) {
-        /* copy to register */
-        match self.r#type {
-            VM_REG_C0 => vm.c0 = value,
-            VM_REG_IP => vm.ip = value,
-            VM_REG_SP => vm.sp = value,
-
-            _ => {}
-        }
-        /* copy to vram */
-        if self.r#type == VM_TYPE_MEM8 {
-            /* addr = self.value */
-            vm.ram.load(self.value, 1, &(value as u8).to_be_bytes());
-        } else if self.r#type == VM_TYPE_MEM16 {
-            vm.ram.load(self.value, 2, &(value as u16).to_be_bytes());
-        } else if self.r#type == VM_TYPE_MEM32 {
-            return vm.ram.load(self.value, 4, &(value as u32).to_be_bytes());
-        } else if self.r#type == VM_TYPE_MEM64 {
-            return vm.ram.load(self.value, 8, &value.to_be_bytes());
-        }
-    }
-    fn is_register(&self) -> bool {
-        if self.r#type == VM_REG_C0 || self.r#type == VM_REG_SP || self.r#type == VM_REG_IP {
-            return true;
-        }
-        false
     }
 }
 
 #[derive(Clone)]
 pub struct VM {
     pub c0: u64,
+    pub c1: u64,
+    pub c2: u64,
+    pub c3: u64,
     pub ip: u64,
     pub sp: u64,
+    pub ar: u64,
+
+    /* flags */
     pub zf: bool,
     pub cf: bool,
     pub ram: VRAM,
@@ -204,7 +159,11 @@ impl VM {
     pub fn new() -> Self {
         VM {
             c0: 0,
+            c1: 0,
+            c2: 0,
+            c3: 0,
             ip: 0,
+            ar: 0,
             zf: false,
             cf: false,
             sp: VM_STACK_SIZE as u64,
@@ -212,92 +171,165 @@ impl VM {
             code: Box::new(RefCell::new(Vec::new())),
         }
     }
+    fn set_register(&mut self, register: u8, value: u64) {
+        match register {
+            VM_REG_C0 => self.c0 = value,
+            VM_REG_C1 => self.c1 = value,
+            VM_REG_C2 => self.c2 = value,
+            VM_REG_C3 => self.c3 = value,
+            VM_REG_SP => self.sp = value,
+            VM_REG_IP => self.ip = value,
+            VM_REG_AR => self.ar = value,
+            _ => {}
+        }
+    }
+    fn get_register(&self, register: u8) -> u64 {
+        match register {
+            VM_REG_C0 => return self.c0,
+            VM_REG_C1 => return self.c1,
+            VM_REG_C2 => return self.c2,
+            VM_REG_C3 => return self.c3,
+            VM_REG_SP => return self.sp,
+            VM_REG_IP => return self.ip,
+            VM_REG_AR => return self.ar,
+            _ => return 0,
+        }
+    }
     /// run VM
     pub fn run(&mut self) {
         loop {
-            let op = self.code.borrow()[self.ip as usize];
-            self.ip += 1;
-            /* mov target, source */
-            if op == VM_OP_MOV {
-                let mut target = Param::from(self);
-                let source = Param::from(self);
+            let opcode = OPcode::from(self);
+            println!("{:?}", &opcode);
 
-                target.set_value(source.get_value(self), self);
+            /* load register, address */
+            if opcode.op == VM_OP_LOAD8
+                || opcode.op == VM_OP_LOAD16
+                || opcode.op == VM_OP_LOAD32
+                || opcode.op == VM_OP_LOAD64
+            {
+                let address = opcode.get_value(1, self);
+                let mut data = [0; 8];
+                match opcode.op {
+                    VM_OP_LOAD8 => {
+                        let dump_data = self.ram.dump(address, 1);
+                        data[7] = dump_data[0];
+                    }
+                    VM_OP_LOAD16 => {
+                        let dump_data = self.ram.dump(address, 2);
+                        for i in 0..2 {
+                            data[6 + i] = dump_data[i];
+                        }
+                    }
+                    VM_OP_LOAD32 => {
+                        let dump_data = self.ram.dump(address, 4);
+                        for i in 0..4 {
+                            data[4 + i] = dump_data[i];
+                        }
+                    }
+                    VM_OP_LOAD64 => {
+                        let dump_data = self.ram.dump(address, 8);
+                        for i in 0..8 {
+                            data[i] = dump_data[i];
+                        }
+                    }
+                    _ => {}
+                }
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    match register {
+                        VM_REG_C0 => self.c0 = u64::from_be_bytes(data),
+                        VM_REG_C1 => self.c1 = u64::from_be_bytes(data),
+                        VM_REG_C2 => self.c2 = u64::from_be_bytes(data),
+                        VM_REG_C3 => self.c3 = u64::from_be_bytes(data),
+                        _ => {}
+                    }
+                }
+            }
+            /* store register, address */
+            if opcode.op == VM_OP_STORE8
+                || opcode.op == VM_OP_STORE16
+                || opcode.op == VM_OP_STORE32
+                || opcode.op == VM_OP_STORE64
+            {
+                let value = opcode.get_value(0, self);
+                let address = opcode.get_value(1, self);
+                match opcode.op {
+                    VM_OP_LOAD8 => {
+                        self.ram.load(address, 1, &value.to_be_bytes()[7..]);
+                    }
+                    VM_OP_LOAD16 => {
+                        self.ram.load(address, 1, &value.to_be_bytes()[6..]);
+                    }
+                    VM_OP_LOAD32 => {
+                        self.ram.load(address, 1, &value.to_be_bytes()[4..]);
+                    }
+                    VM_OP_LOAD64 => {
+                        self.ram.load(address, 1, &value.to_be_bytes());
+                    }
+                    _ => {}
+                }
+            }
+            /* mov target, source */
+            if opcode.op == VM_OP_MOV {
+                let source = opcode.get_value(1, self);
+
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source);
+                }
             }
             /* add source, target */
-            if op == VM_OP_ADD {
-                let mut source = Param::from(self);
-                let target = Param::from(self);
-
-                let mut source_val = source.get_value(self);
-                let target_val = target.get_value(self);
-                source_val += target_val;
-
-                source.set_value(source_val, self);
+            if opcode.op == VM_OP_ADD {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source + target);
+                }
             }
             /* sub source, target */
-            if op == VM_OP_SUB {
-                let mut source = Param::from(self);
-                let target = Param::from(self);
-
-                let mut source_val = source.get_value(self);
-                let target_val = target.get_value(self);
-                source_val -= target_val;
-
-                source.set_value(source_val, self);
+            if opcode.op == VM_OP_SUB {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source - target);
+                }
             }
             /* mul source, target */
-            if op == VM_OP_MUL {
-                let mut source = Param::from(self);
-                let target = Param::from(self);
-
-                let mut source_val = source.get_value(self);
-                let target_val = target.get_value(self);
-                source_val *= target_val;
-
-                source.set_value(source_val, self);
+            if opcode.op == VM_OP_MUL {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source * target);
+                }
             }
             /* div source, target */
-            if op == VM_OP_DIV {
-                let mut source = Param::from(self);
-                let target = Param::from(self);
-
-                let mut source_val = source.get_value(self);
-                let target_val = target.get_value(self);
-                source_val /= target_val;
-
-                source.set_value(source_val, self);
+            if opcode.op == VM_OP_DIV {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source / target);
+                }
             }
             /* push register */
-            if op == VM_OP_PUSH {
-                let register = Param::from(self);
-
-                if register.is_register() {
-                    self.sp -= 8;
-                    self.ram
-                        .load(self.sp, 8, &register.get_value(self).to_be_bytes());
-                }
+            if opcode.op == VM_OP_PUSH {
+                self.sp -= 8;
+                self.ram
+                    .load(self.sp, 8, &opcode.get_value(0, self).to_be_bytes());
             }
             /* pop register */
-            if op == VM_OP_POP {
-                let mut register = Param::from(self);
+            if opcode.op == VM_OP_POP {
+                let reg_val = self.ram.dump(self.sp, 8);
 
-                if register.is_register() {
-                    let reg_val = self.ram.dump(self.sp, 8);
-                    register.set_value(u64::from_be_bytes(reg_val.try_into().unwrap()), self);
-
-                    self.sp += 8;
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, u64::from_be_bytes(reg_val.try_into().unwrap()));
                 }
+
+                self.sp += 8;
             }
             /* cmp val1, val2 */
-            if op == VM_OP_CMP {
-                let val1 = Param::from(self);
-                let val2 = Param::from(self);
-
-                if val1.get_value(self) == val2.get_value(self) {
+            if opcode.op == VM_OP_CMP {
+                if opcode.get_value(0, self) == opcode.get_value(1, self) {
                     self.zf = true;
                     self.cf = false;
-                } else if val1.get_value(self) > val2.get_value(self) {
+                } else if opcode.get_value(0, self) > opcode.get_value(1, self) {
                     self.zf = false;
                     self.cf = false;
                 } else {
@@ -306,91 +338,79 @@ impl VM {
                 }
             }
             /* je addr */
-            if op == VM_OP_JE {
-                let addr = Param::from(self);
+            if opcode.op == VM_OP_JE {
                 if self.zf {
-                    self.ip = addr.get_value(self);
+                    self.ip = opcode.get_value(0, self);
                 }
             }
             /* jne addr */
-            if op == VM_OP_JNE {
-                let addr = Param::from(self);
+            if opcode.op == VM_OP_JNE {
                 if !self.zf {
-                    self.ip = addr.get_value(self);
+                    self.ip = opcode.get_value(0, self);
                 }
             }
             /* jg addr */
-            if op == VM_OP_JG {
-                let addr = Param::from(self);
+            if opcode.op == VM_OP_JG {
                 if !self.zf && !self.cf {
-                    self.ip = addr.get_value(self);
+                    self.ip = opcode.get_value(0, self);
                 }
             }
             /* jl addr */
-            if op == VM_OP_JL {
-                let addr = Param::from(self);
+            if opcode.op == VM_OP_JL {
                 if !self.zf && self.cf {
-                    self.ip = addr.get_value(self);
+                    self.ip = opcode.get_value(0, self);
                 }
             }
             /* jng addr */
-            if op == VM_OP_JNG {
-                let addr = Param::from(self);
+            if opcode.op == VM_OP_JNG {
                 if self.zf || self.zf && self.cf {
-                    self.ip = addr.get_value(self);
+                    self.ip = opcode.get_value(0, self);
                 }
             }
             /* jnl addr */
-            if op == VM_OP_JNL {
-                let addr = Param::from(self);
+            if opcode.op == VM_OP_JNL {
                 if self.zf || !self.zf && self.cf {
-                    self.ip = addr.get_value(self);
+                    self.ip = opcode.get_value(0, self);
                 }
             }
             /* jmp addr */
-            if op == VM_OP_JMP {
-                let addr = Param::from(self);
-                self.ip = addr.get_value(self);
+            if opcode.op == VM_OP_JMP {
+                self.ip = opcode.get_value(0, self);
             }
             /* call addr */
-            if op == VM_OP_CALL {
-                let addr = Param::from(self);
+            if opcode.op == VM_OP_CALL {
                 /* push IP */
                 self.sp -= 8;
                 self.ram.load(self.sp, 8, &self.ip.to_be_bytes());
-                self.ip = addr.get_value(self);
+                self.ip = opcode.get_value(0, self);
             }
             /* ret */
-            if op == VM_OP_RET {
+            if opcode.op == VM_OP_RET {
                 /* pop IP */
                 self.ip = u64::from_be_bytes(self.ram.dump(self.sp, 8).try_into().unwrap());
                 self.sp += 8;
             }
             /* in port data */
-            if op == VM_OP_IN {
-                let port = Param::from(self);
-                let mut data = Param::from(self);
-                if port.get_value(self) as u8 == VM_DEV_STDIN {
+            if opcode.op == VM_OP_IN {
+                if opcode.get_value(0, self) as u8 == VM_DEV_STDIN {
                     let mut buf = [0];
                     std::io::stdin().read(&mut buf).unwrap();
-                    data.set_value(buf[0] as u64, self);
+                    //data.set_value(buf[0] as u64, self);
                 }
             }
             /* out port data */
-            if op == VM_OP_OUT {
-                let port = Param::from(self);
-                let data = Param::from(self);
-                if port.get_value(self) as u8 == VM_DEV_STDOUT {
-                    let buf = [data.get_value(self) as u8];
+            if opcode.op == VM_OP_OUT {
+                if opcode.get_value(0, self) as u8 == VM_DEV_STDOUT {
+                    let buf = [opcode.get_value(1, self) as u8];
                     std::io::stdout().write(&buf).unwrap();
                 }
-                if port.get_value(self) as u8 == VM_DEV_STDERR {
-                    let buf = [data.get_value(self) as u8];
+                if opcode.get_value(0, self) as u8 == VM_DEV_STDERR {
+                    let buf = [opcode.get_value(1, self) as u8];
                     std::io::stderr().write(&buf).unwrap();
                 }
             }
             /* hal */
-            if op == VM_OP_HAL {
+            if opcode.op == VM_OP_HAL {
                 return;
             }
         }
