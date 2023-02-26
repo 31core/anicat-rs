@@ -99,12 +99,13 @@ impl AstNode {
                 new_node = AstNode::from_tokens(tokens);
                 new_node.r#type = AST_TYPE_PARAMS;
             }
+            /* [ */
             if token.r#type == TOKEN_TYPE_LM_BKT {
                 new_node = AstNode::from_tokens(tokens);
                 new_node.r#type = AST_TYPE_INDEX;
             }
             /* { */
-            else if token.r#type == TOKEN_TYPE_LL_BKT {
+            if token.r#type == TOKEN_TYPE_LL_BKT {
                 new_node = AstNode::from_tokens(tokens);
                 new_node.r#type = AST_TYPE_CODE_BLOCK;
             }
@@ -124,6 +125,14 @@ impl AstNode {
                 top_ast.node_mut(node_i).push(param_node);
                 top_ast.remove(node_i + 1);
 
+                /* add code block */
+                let code_block_node = Rc::clone(&top_ast.nodes[node_i + 1]);
+                top_ast.node_mut(node_i).push(code_block_node);
+                top_ast.remove(node_i + 1);
+            }
+            /* else expression */
+            if top_ast.node(node_i).r#type == AST_TYPE_ELSE
+            {
                 /* add code block */
                 let code_block_node = Rc::clone(&top_ast.nodes[node_i + 1]);
                 top_ast.node_mut(node_i).push(code_block_node);

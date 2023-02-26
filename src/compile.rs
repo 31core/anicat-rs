@@ -295,7 +295,7 @@ fn compile_op(
 
 /**
  * Compile to byte code
- * 
+ *
  * Example:
  * ```
  * let mut byte_code = Vec::new();
@@ -345,14 +345,16 @@ pub fn compile(
         }
     }
 
-    /* add sp, val16: variable_size */
-    byte_code.extend(assemblize(
-        VM_OP_ADD,
-        &[
-            AssemblyValue::Register(VM_REG_SP),
-            AssemblyValue::Value16(variable_size as u16),
-        ],
-    ));
+    if variable_size > 0 {
+        /* add sp, val16: variable_size */
+        byte_code.extend(assemblize(
+            VM_OP_ADD,
+            &[
+                AssemblyValue::Register(VM_REG_SP),
+                AssemblyValue::Value16(variable_size as u16),
+            ],
+        ));
+    }
     variable = Variable::modify_offset(variable.clone(), variable_size as isize * -1);
     variable
 }

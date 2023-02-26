@@ -39,9 +39,9 @@ pub const VM_REG_C0: u8 = 0x20;
 pub const VM_REG_C1: u8 = 0x21;
 pub const VM_REG_C2: u8 = 0x22;
 pub const VM_REG_C3: u8 = 0x23;
-pub const VM_REG_SP: u8 = 0x24;
-pub const VM_REG_IP: u8 = 0x25;
-pub const VM_REG_AR: u8 = 0x26; // Adress Register
+pub const VM_REG_SP: u8 = 0x24; // Stack Pointer
+pub const VM_REG_IP: u8 = 0x25; // Instruction Pointer
+pub const VM_REG_AR: u8 = 0x26; // Address Register
 
 /**
  * value types (0x20 - 0x32)

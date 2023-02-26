@@ -55,23 +55,46 @@ fn get_flag_pos(str: &str) -> Result<Vec<isize>, &str> {
     ret.push(-1);
     pub const SYMBOLS: &str = " \"\\=()[]{},:;+-*/&|!\t\n";
     let mut in_string = false;
-    let mut is_escape = false;
+    let mut in_single_line_comment = false;
+    let mut in_multiple_line_comment = false;
+    let mut last_char = ' ';
     for i in 0..str.len() {
         for sym in SYMBOLS.chars() {
             if str.as_bytes()[i] == sym as u8 {
+                if sym == '"' && last_char != '\\' {
+                    in_string = !in_string;
+                    continue;
+                }
+
+                /* start of single line comment */
+                if sym == '/' && last_char == '/' {
+                    in_single_line_comment = true;
+                    ret.pop();
+                    continue;
+                }
+                /* end of single line comment */
+                else if in_single_line_comment && sym == '\n' {
+                    in_single_line_comment = false;
+                }
+
+                /* start of single line comment */
+                if last_char == '/' && sym == '*' {
+                    in_multiple_line_comment = true;
+                    ret.pop();
+                    continue;
+                }
+                /* end of single line comment */
+                else if in_multiple_line_comment && last_char == '*' && sym == '/' {
+                    in_multiple_line_comment = false;
+                    ret.pop();
+                    continue;
+                }
                 /* if in a string, don't put an in-string synbol into the 'ret' list */
-                if !in_string || (in_string && sym == '"' && !is_escape) {
+                if !in_string && !in_single_line_comment && !in_multiple_line_comment {
                     ret.push(i as isize);
                 }
 
-                if sym == '"' && !is_escape {
-                    in_string = !in_string;
-                }
-                if is_escape && in_string {
-                    is_escape = false;
-                } else if sym == '\\' && in_string {
-                    is_escape = true;
-                }
+                last_char = sym;
                 break;
             }
         }
@@ -156,15 +179,18 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
             tokens[i].r#type = TOKEN_TYPE_KEYWORD;
         } else if is_number(&tokens[i].name) {
             tokens[i].r#type = TOKEN_TYPE_NUMBER;
-        } else if tokens[i].name == "\"" && tokens[i + 2].name == "\"" {
-            tokens[i + 1].r#type = TOKEN_TYPE_STRING;
-            /* replace escape characters */
-            tokens[i + 1].name = tokens[i + 1].name.replace("\\\"", "\"");
-            tokens[i + 1].name = tokens[i + 1].name.replace("\\n", "\n");
-            tokens[i + 1].name = tokens[i + 1].name.replace("\\r", "\r");
-            tokens[i + 1].name = tokens[i + 1].name.replace("\\t", "\t");
-            tokens.remove(i + 2);
+        }
+        /* comment */
+        else if tokens[i].name.starts_with("//") || tokens[i].name.starts_with("/*") {
             tokens.remove(i);
+            i -= 1;
+        } else if tokens[i].name.starts_with("\"") && tokens[i].name.ends_with("\"") {
+            tokens[i].r#type = TOKEN_TYPE_STRING;
+            /* replace escape characters */
+            tokens[i].name = tokens[i].name.replace("\\\"", "\"");
+            tokens[i].name = tokens[i].name.replace("\\n", "\n");
+            tokens[i].name = tokens[i].name.replace("\\r", "\r");
+            tokens[i].name = tokens[i].name.replace("\\t", "\t");
         } else if tokens[i].name.len() == 3
             && tokens[i].name.as_bytes()[0] == '\'' as u8
             && tokens[i].name.as_bytes()[2] == '\'' as u8
