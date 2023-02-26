@@ -16,11 +16,15 @@ fn main() {
     let tokens = token::generate_token(&code).unwrap();
     /* generate AST */
     let ast = AstNode::from_tokens(&mut tokens.into_iter());
+    //debug::print_ast(&ast);
     let mut byte_code = Vec::new();
-    compile::compile(&mut byte_code, &ast).unwrap();
-    byte_code.push(0x14);
+    compile::compile(&mut byte_code, &ast, None);
+    byte_code.extend(assembly::assemblize(vm::VM_OP_HAL, &[]));
+
+    std::fs::write("byte_code", &byte_code).unwrap();
 
     let mut vm = VM::new();
     vm.update_code(&byte_code);
     vm.run();
+    println!("{vm:?}");
 }

@@ -131,8 +131,7 @@ impl AstNode {
                 top_ast.remove(node_i + 1);
             }
             /* else expression */
-            if top_ast.node(node_i).r#type == AST_TYPE_ELSE
-            {
+            if top_ast.node(node_i).r#type == AST_TYPE_ELSE {
                 /* add code block */
                 let code_block_node = Rc::clone(&top_ast.nodes[node_i + 1]);
                 top_ast.node_mut(node_i).push(code_block_node);

@@ -3,7 +3,7 @@ use super::vram::VRAM;
 use std::cell::RefCell;
 use std::io::{Read, Write};
 
-const VM_STACK_SIZE: usize = 8 * 1024 * 1024;
+pub const VM_STACK_SIZE: usize = 8 * 1024 * 1024;
 
 /// op codes (0x01 - 0x14)
 pub const VM_OP_MOV: u8 = 0x01;
@@ -199,7 +199,6 @@ impl VM {
     pub fn run(&mut self) {
         loop {
             let opcode = OPcode::from(self);
-            println!("{:?}", &opcode);
 
             /* load register, address */
             if opcode.op == VM_OP_LOAD8
@@ -235,13 +234,7 @@ impl VM {
                     _ => {}
                 }
                 if let AssemblyValue::Register(register) = opcode.values[0] {
-                    match register {
-                        VM_REG_C0 => self.c0 = u64::from_be_bytes(data),
-                        VM_REG_C1 => self.c1 = u64::from_be_bytes(data),
-                        VM_REG_C2 => self.c2 = u64::from_be_bytes(data),
-                        VM_REG_C3 => self.c3 = u64::from_be_bytes(data),
-                        _ => {}
-                    }
+                    self.set_register(register, u64::from_be_bytes(data));
                 }
             }
             /* store register, address */
@@ -253,17 +246,17 @@ impl VM {
                 let value = opcode.get_value(0, self);
                 let address = opcode.get_value(1, self);
                 match opcode.op {
-                    VM_OP_LOAD8 => {
+                    VM_OP_STORE8 => {
                         self.ram.load(address, 1, &value.to_be_bytes()[7..]);
                     }
-                    VM_OP_LOAD16 => {
-                        self.ram.load(address, 1, &value.to_be_bytes()[6..]);
+                    VM_OP_STORE16 => {
+                        self.ram.load(address, 2, &value.to_be_bytes()[6..]);
                     }
-                    VM_OP_LOAD32 => {
-                        self.ram.load(address, 1, &value.to_be_bytes()[4..]);
+                    VM_OP_STORE32 => {
+                        self.ram.load(address, 4, &value.to_be_bytes()[4..]);
                     }
-                    VM_OP_LOAD64 => {
-                        self.ram.load(address, 1, &value.to_be_bytes());
+                    VM_OP_STORE64 => {
+                        self.ram.load(address, 8, &value.to_be_bytes());
                     }
                     _ => {}
                 }

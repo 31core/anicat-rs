@@ -149,10 +149,8 @@ fn compile_op(
     /* variable */
     else if ast.borrow().node(0).r#type == AST_TYPE_IDENTIFIER {
         let mut offset = 0;
-        //let mut size = 0;
         if let Some(var) = Variable::lookup(variable.clone(), &ast.borrow().node(0).data) {
-            offset += var.borrow().offset;
-            //size = var.borrow().size;
+            offset = var.borrow().offset;
         }
 
         /*
@@ -205,10 +203,8 @@ fn compile_op(
     /* variable */
     else if ast.borrow().node(1).r#type == AST_TYPE_IDENTIFIER {
         let mut offset = 0;
-        //let mut size = 0;
         if let Some(var) = Variable::lookup(variable.clone(), &ast.borrow().node(0).data) {
-            offset += var.borrow().offset;
-            //size = var.borrow().size;
+            offset = var.borrow().offset;
         }
 
         /*
@@ -311,13 +307,13 @@ pub fn compile(
     let mut variable_size = 0;
     for node in &ast.nodes {
         if node.borrow().r#type == AST_TYPE_VAR_DECLARE {
-            let var = Rc::new(RefCell::new(Variable::new()));
-            var.borrow_mut().name = node.borrow().nodes[0].borrow().data.clone();
-            var.borrow_mut().r#type =
+            let new_var = Rc::new(RefCell::new(Variable::new()));
+            new_var.borrow_mut().name = node.borrow().nodes[0].borrow().data.clone();
+            new_var.borrow_mut().r#type =
                 VariableTypes::from_string(&node.borrow().nodes[1].borrow().data);
             {
-                let size = var.borrow().r#type.get_size();
-                var.borrow_mut().size = size;
+                let size = new_var.borrow().r#type.get_size();
+                new_var.borrow_mut().size = size;
                 /* sub sp, u16: [var size] */
                 byte_code.extend(assemblize(
                     VM_OP_SUB,
@@ -328,20 +324,105 @@ pub fn compile(
                 ));
                 variable_size += size;
             }
-            match &variable {
-                Some(previous_var) => {
-                    var.borrow_mut().previous = Some(Rc::clone(previous_var));
-                    variable = Some(Rc::clone(&var));
+            if let Some(previous_var) = &variable {
+                new_var.borrow_mut().previous = Some(Rc::clone(previous_var));
 
-                    /* add offset of previous variables */
-                    let size = var.borrow().size as isize;
-                    Variable::modify_offset(variable.clone(), size);
-                }
-                None => variable = Some(var),
+                /* add offset of previous variables */
+                let size = new_var.borrow().size as isize;
+                Variable::modify_offset(variable.clone(), size);
             }
+            variable = Some(Rc::clone(&new_var));
         }
         if node.borrow().is_operator() {
             compile_op(byte_code, node, &variable);
+        }
+        if node.borrow().r#type == AST_TYPE_VAR_SET_VALUE {
+            if node.borrow().node(1).r#type == AST_TYPE_VALUE {
+                /*
+                mov c0, [value]
+                */
+                byte_code.extend(assemblize(
+                    VM_OP_MOV,
+                    &[
+                        AssemblyValue::Register(VM_REG_C0),
+                        AssemblyValue::Value64(node.borrow().node(1).data.parse().unwrap()),
+                    ],
+                ));
+            }
+            if node.borrow().node(1).is_operator() {
+                compile_op(byte_code, &node.borrow().nodes[1], &variable);
+            }
+            if node.borrow().node(1).r#type == AST_TYPE_IDENTIFIER {
+                /*
+                mov ar, sp
+                add ar, [offest]
+                load c0, ar
+                */
+                let mut offset = 0;
+                let var = Variable::lookup(variable.clone(), &node.borrow().node(1).data);
+                if let Some(var) = var {
+                    offset = var.borrow().offset;
+                }
+
+                byte_code.extend(assemblize(
+                    VM_OP_MOV,
+                    &[
+                        AssemblyValue::Register(VM_REG_AR),
+                        AssemblyValue::Register(VM_REG_SP),
+                    ],
+                ));
+                /* don't add `add ar, 0` */
+                if offset > 0 {
+                    byte_code.extend(assemblize(
+                        VM_OP_ADD,
+                        &[
+                            AssemblyValue::Register(VM_REG_AR),
+                            AssemblyValue::Value16(offset as u16),
+                        ],
+                    ));
+                }
+                byte_code.extend(assemblize(
+                    VM_OP_LOAD64,
+                    &[
+                        AssemblyValue::Register(VM_REG_C0),
+                        AssemblyValue::Register(VM_REG_AR),
+                    ],
+                ));
+            }
+            /*
+            mov ar, sp
+            add ar, [offest]
+            store c0, ar
+            */
+            let mut offset = 0;
+            let var = Variable::lookup(variable.clone(), &node.borrow().node(0).data);
+            if let Some(var) = var {
+                offset = var.borrow().offset;
+            }
+            byte_code.extend(assemblize(
+                VM_OP_MOV,
+                &[
+                    AssemblyValue::Register(VM_REG_AR),
+                    AssemblyValue::Register(VM_REG_SP),
+                ],
+            ));
+            /* don't add `add ar, 0` */
+            if offset > 0 {
+                byte_code.extend(assemblize(
+                    VM_OP_ADD,
+                    &[
+                        AssemblyValue::Register(VM_REG_AR),
+                        AssemblyValue::Value16(offset as u16),
+                    ],
+                ));
+            }
+            byte_code.extend(assemblize(
+                VM_OP_STORE64,
+                &[
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_AR),
+                ],
+            ));
         }
     }
 
