@@ -78,6 +78,7 @@ impl AstNode {
                 TOKEN_TYPE_SUB => new_node.r#type = AST_TYPE_SUB, // -
                 TOKEN_TYPE_MUL => new_node.r#type = AST_TYPE_MUL, // *
                 TOKEN_TYPE_DIV => new_node.r#type = AST_TYPE_DIV, // /
+                TOKEN_TYPE_MOD => new_node.r#type = AST_TYPE_MOD, // %
                 TOKEN_TYPE_EQU => new_node.r#type = AST_TYPE_VAR_SET_VALUE, // =
                 TOKEN_TYPE_LOGIC_AND => new_node.r#type = AST_TYPE_AND, // &&
                 TOKEN_TYPE_LOGIC_OR => new_node.r#type = AST_TYPE_OR, // ||
@@ -87,6 +88,9 @@ impl AstNode {
                 TOKEN_TYPE_GT => new_node.r#type = AST_TYPE_GT,   // >
                 TOKEN_TYPE_LE => new_node.r#type = AST_TYPE_LE,   // <=
                 TOKEN_TYPE_GE => new_node.r#type = AST_TYPE_GE,   // >=
+                TOKEN_TYPE_SHL => new_node.r#type = AST_TYPE_SHL, // <<
+                TOKEN_TYPE_SHR => new_node.r#type = AST_TYPE_SHR, // >>
+                TOKEN_TYPE_DOT => new_node.r#type = AST_TYPE_CHILD,
                 TOKEN_TYPE_NAME => new_node.r#type = AST_TYPE_IDENTIFIER,
                 TOKEN_TYPE_SPLIT => continue,
                 TOKEN_TYPE_RS_BKT => break,
@@ -279,6 +283,9 @@ impl AstNode {
                 || top_ast.node(node_i).r#type == AST_TYPE_GT
                 || top_ast.node(node_i).r#type == AST_TYPE_LE
                 || top_ast.node(node_i).r#type == AST_TYPE_GE
+                || top_ast.node(node_i).r#type == AST_TYPE_MOD
+                || top_ast.node(node_i).r#type == AST_TYPE_SHL
+                || top_ast.node(node_i).r#type == AST_TYPE_SHR
             {
                 let left = Rc::clone(&top_ast.nodes[node_i - 1]);
                 let right = Rc::clone(&top_ast.nodes[node_i + 1]);
@@ -326,6 +333,32 @@ impl AstNode {
                 top_ast.remove(node_i);
                 node_i -= 1;
             }
+            if top_ast.node(node_i).r#type == AST_TYPE_CHILD {
+                if top_ast.node(node_i - 1).r#type == AST_TYPE_CHILD {
+                    top_ast
+                        .node_mut(node_i)
+                        .push(Rc::clone(&top_ast.nodes[node_i - 1].borrow().nodes[1]));
+                    top_ast
+                        .node_mut(node_i)
+                        .push(Rc::clone(&top_ast.nodes[node_i + 1]));
+                    top_ast.node_mut(node_i - 1).nodes.pop();
+                    top_ast
+                        .node_mut(node_i - 1)
+                        .push(Rc::clone(&top_ast.nodes[node_i]));
+                    top_ast.nodes.remove(node_i);
+                    top_ast.nodes.remove(node_i);
+                } else {
+                    top_ast
+                        .node_mut(node_i)
+                        .push(Rc::clone(&top_ast.nodes[node_i - 1]));
+                    top_ast
+                        .node_mut(node_i)
+                        .push(Rc::clone(&top_ast.nodes[node_i + 1]));
+                    top_ast.nodes.remove(node_i + 1);
+                    top_ast.nodes.remove(node_i - 1);
+                    node_i -= 1;
+                }
+            }
             node_i += 1;
         }
         top_ast
@@ -351,16 +384,20 @@ pub const AST_TYPE_ADD: u8 = 15; // +
 pub const AST_TYPE_SUB: u8 = 16; // -
 pub const AST_TYPE_MUL: u8 = 17; // *
 pub const AST_TYPE_DIV: u8 = 18; // /
-pub const AST_TYPE_GT: u8 = 19; // >
-pub const AST_TYPE_LT: u8 = 20; // <
-pub const AST_TYPE_GE: u8 = 21; // >=
-pub const AST_TYPE_LE: u8 = 22; // >=
-pub const AST_TYPE_EQU: u8 = 23; // ==
-pub const AST_TYPE_NEQU: u8 = 24; // !=
-pub const AST_TYPE_AND: u8 = 25;
-pub const AST_TYPE_OR: u8 = 26;
-pub const AST_TYPE_VALUE: u8 = 27;
-pub const AST_TYPE_BREAK: u8 = 28;
-pub const AST_TYPE_CONTINUE: u8 = 29;
-pub const AST_TYPE_RETURN: u8 = 30;
-pub const AST_TYPE_INDEX: u8 = 31;
+pub const AST_TYPE_MOD: u8 = 19; // %
+pub const AST_TYPE_GT: u8 = 20; // >
+pub const AST_TYPE_LT: u8 = 21; // <
+pub const AST_TYPE_GE: u8 = 22; // >=
+pub const AST_TYPE_LE: u8 = 23; // >=
+pub const AST_TYPE_EQU: u8 = 24; // ==
+pub const AST_TYPE_NEQU: u8 = 25; // !=
+pub const AST_TYPE_SHL: u8 = 26; // <<
+pub const AST_TYPE_SHR: u8 = 27; // >>
+pub const AST_TYPE_AND: u8 = 28;
+pub const AST_TYPE_OR: u8 = 29;
+pub const AST_TYPE_VALUE: u8 = 30;
+pub const AST_TYPE_BREAK: u8 = 31;
+pub const AST_TYPE_CONTINUE: u8 = 32;
+pub const AST_TYPE_RETURN: u8 = 33;
+pub const AST_TYPE_INDEX: u8 = 34;
+pub const AST_TYPE_CHILD: u8 = 35;

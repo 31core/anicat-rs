@@ -32,8 +32,11 @@ Accepted value types:
 |mov      |target[r]  |source[r,v] |       |move value         |
 |add      |source[r]  |value[r,v]  |       |add                |
 |sub      |source[r]  |value[r,v]  |       |subtract           |
-|div      |source[r]  |value[r,v]  |       |multiply           |
 |mul      |source[r]  |value[r,v]  |       |divide             |
+|div      |source[r]  |value[r,v]  |       |multiply           |
+|mod      |source[r]  |value[r,v]  |       |modular            |
+|shl      |source[r]  |value[r,v]  |       |shift logic left   |
+|shr      |source[r]  |value[r,v]  |       |shift logic right  |
 |push     |source[r]  |-           |       |push stack         |
 |load     |register[r]|address[r,v]|       |load from memory   |
 |store    |register[r]|address[r,v]|       |store to memory    |

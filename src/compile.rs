@@ -183,7 +183,11 @@ fn compile_op(
         ));
     }
     /* operating result */
-    else if ast.borrow().node(0).is_operator() {
+    else if ast.borrow().node(0).is_operator()
+        || ast.borrow().node(0).r#type == AST_TYPE_SHL
+        || ast.borrow().node(0).r#type == AST_TYPE_SHR
+        || ast.borrow().node(0).r#type == AST_TYPE_MOD
+    {
         compile_op(byte_code, &ast.borrow().nodes[0], variable);
     }
 
@@ -237,7 +241,11 @@ fn compile_op(
         ));
     }
     /* operating result */
-    else if ast.borrow().node(1).is_operator() {
+    else if ast.borrow().node(1).is_operator()
+        || ast.borrow().node(1).r#type == AST_TYPE_SHL
+        || ast.borrow().node(1).r#type == AST_TYPE_SHR
+        || ast.borrow().node(1).r#type == AST_TYPE_MOD
+    {
         /* push c0 */
         byte_code.extend(assemblize(
             VM_OP_PUSH,
@@ -280,6 +288,27 @@ fn compile_op(
         )),
         AST_TYPE_DIV => byte_code.extend(assemblize(
             VM_OP_DIV,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Register(VM_REG_C1),
+            ],
+        )),
+        AST_TYPE_MOD => byte_code.extend(assemblize(
+            VM_OP_MOD,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Register(VM_REG_C1),
+            ],
+        )),
+        AST_TYPE_SHL => byte_code.extend(assemblize(
+            VM_OP_SHL,
+            &[
+                AssemblyValue::Register(VM_REG_C0),
+                AssemblyValue::Register(VM_REG_C1),
+            ],
+        )),
+        AST_TYPE_SHR => byte_code.extend(assemblize(
+            VM_OP_SHR,
             &[
                 AssemblyValue::Register(VM_REG_C0),
                 AssemblyValue::Register(VM_REG_C1),
@@ -333,7 +362,11 @@ pub fn compile(
             }
             variable = Some(Rc::clone(&new_var));
         }
-        if node.borrow().is_operator() {
+        if node.borrow().is_operator()
+            || node.borrow().r#type == AST_TYPE_SHL
+            || node.borrow().r#type == AST_TYPE_SHR
+            || node.borrow().r#type == AST_TYPE_MOD
+        {
             compile_op(byte_code, node, &variable);
         }
         if node.borrow().r#type == AST_TYPE_VAR_SET_VALUE {

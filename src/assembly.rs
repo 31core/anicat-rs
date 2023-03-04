@@ -9,6 +9,9 @@ pub enum AssemblyValue {
     Value64(u64),
 }
 
+/**
+ * Compile byte code for virtual machine
+*/
 pub fn assemblize(ins: u8, val: &[AssemblyValue]) -> Vec<u8> {
     let mut byte_cdde = Vec::new();
     let mut opcode: u16 = 0;

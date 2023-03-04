@@ -33,6 +33,9 @@ pub const VM_OP_STORE8: u8 = 0x18;
 pub const VM_OP_STORE16: u8 = 0x19;
 pub const VM_OP_STORE32: u8 = 0x1a;
 pub const VM_OP_STORE64: u8 = 0x1b;
+pub const VM_OP_MOD: u8 = 0x1c;
+pub const VM_OP_SHL: u8 = 0x1d;
+pub const VM_OP_SHR: u8 = 0x1e;
 pub const VM_OP_HAL: u8 = 0x1f;
 
 pub const VM_REG_C0: u8 = 0x20;
@@ -299,6 +302,30 @@ impl VM {
                 let target = opcode.get_value(1, self);
                 if let AssemblyValue::Register(register) = opcode.values[0] {
                     self.set_register(register, source / target);
+                }
+            }
+            /* mod source, target */
+            if opcode.op == VM_OP_MOD {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source % target);
+                }
+            }
+            /* shl source, target */
+            if opcode.op == VM_OP_SHL {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source << target);
+                }
+            }
+            /* shr source, target */
+            if opcode.op == VM_OP_SHR {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source >> target);
                 }
             }
             /* push register */

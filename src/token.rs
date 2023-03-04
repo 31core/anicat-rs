@@ -19,21 +19,25 @@ pub const TOKEN_TYPE_ADD: u8 = 11; // +
 pub const TOKEN_TYPE_SUB: u8 = 12; // -
 pub const TOKEN_TYPE_MUL: u8 = 13; // *
 pub const TOKEN_TYPE_DIV: u8 = 14; // /
-pub const TOKEN_TYPE_GT: u8 = 15; // >
-pub const TOKEN_TYPE_LT: u8 = 16; // <
-pub const TOKEN_TYPE_ISEQU: u8 = 17; // ==
-pub const TOKEN_TYPE_NOTEQU: u8 = 18; // !=
-pub const TOKEN_TYPE_GE: u8 = 19; // >=
-pub const TOKEN_TYPE_LE: u8 = 20; // <=
-pub const TOKEN_TYPE_NUMBER: u8 = 21;
-pub const TOKEN_TYPE_CHAR: u8 = 22;
-pub const TOKEN_TYPE_SPLIT: u8 = 23;
-pub const TOKEN_TYPE_STRING: u8 = 24;
-pub const TOKEN_TYPE_AND: u8 = 25; // *
-pub const TOKEN_TYPE_OR: u8 = 26; // |
-pub const TOKEN_TYPE_NOT: u8 = 27; // !
-pub const TOKEN_TYPE_LOGIC_AND: u8 = 28; // &&
-pub const TOKEN_TYPE_LOGIC_OR: u8 = 29; // ||
+pub const TOKEN_TYPE_MOD: u8 = 15; // %
+pub const TOKEN_TYPE_GT: u8 = 16; // >
+pub const TOKEN_TYPE_LT: u8 = 17; // <
+pub const TOKEN_TYPE_ISEQU: u8 = 18; // ==
+pub const TOKEN_TYPE_NOTEQU: u8 = 19; // !=
+pub const TOKEN_TYPE_GE: u8 = 20; // >=
+pub const TOKEN_TYPE_LE: u8 = 21; // <=
+pub const TOKEN_TYPE_NUMBER: u8 = 22;
+pub const TOKEN_TYPE_CHAR: u8 = 23;
+pub const TOKEN_TYPE_SPLIT: u8 = 24;
+pub const TOKEN_TYPE_STRING: u8 = 25;
+pub const TOKEN_TYPE_AND: u8 = 26; // *
+pub const TOKEN_TYPE_OR: u8 = 27; // |
+pub const TOKEN_TYPE_NOT: u8 = 28; // !
+pub const TOKEN_TYPE_LOGIC_AND: u8 = 29; // &&
+pub const TOKEN_TYPE_LOGIC_OR: u8 = 30; // ||
+pub const TOKEN_TYPE_SHL: u8 = 31; // <<
+pub const TOKEN_TYPE_SHR: u8 = 32; // >>
+pub const TOKEN_TYPE_DOT: u8 = 33; // .
 
 impl Token {
     pub fn new() -> Self {
@@ -53,7 +57,7 @@ pub const KEYWORDS: [&str; 14] = [
 fn get_flag_pos(str: &str) -> Result<Vec<isize>, &str> {
     let mut ret: Vec<isize> = vec![];
     ret.push(-1);
-    pub const SYMBOLS: &str = " \"\\=()[]{},:;+-*/&|!\t\n";
+    pub const SYMBOLS: &str = " \"\\=()[]{}<>,.:;+-*/&|!\t\n";
     let mut in_string = false;
     let mut in_single_line_comment = false;
     let mut in_multiple_line_comment = false;
@@ -217,6 +221,18 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
             tokens[i].name = "->".to_string();
             tokens.remove(i + 1);
         }
+        /* << */
+        else if tokens[i].name == "<" && tokens[i + 1].name == "<" {
+            tokens[i].name = "<<".to_string();
+            tokens[i].r#type = TOKEN_TYPE_SHL;
+            tokens.remove(i + 1);
+        }
+        /* >> */
+        else if tokens[i].name == ">" && tokens[i + 1].name == ">" {
+            tokens[i].name = ">>".to_string();
+            tokens[i].r#type = TOKEN_TYPE_SHR;
+            tokens.remove(i + 1);
+        }
         /* <, >, <=, >= */
         else if tokens[i].name == ">" || tokens[i].name == "<" {
             /* >= or <= */
@@ -246,6 +262,7 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
                 "-" => tokens[i].r#type = TOKEN_TYPE_SUB,
                 "*" => tokens[i].r#type = TOKEN_TYPE_MUL,
                 "/" => tokens[i].r#type = TOKEN_TYPE_DIV,
+                "%" => tokens[i].r#type = TOKEN_TYPE_MOD,
                 "(" => tokens[i].r#type = TOKEN_TYPE_LS_BKT,
                 "[" => tokens[i].r#type = TOKEN_TYPE_LM_BKT,
                 "{" => tokens[i].r#type = TOKEN_TYPE_LL_BKT,
@@ -254,6 +271,7 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
                 "}" => tokens[i].r#type = TOKEN_TYPE_RL_BKT,
                 "," => tokens[i].r#type = TOKEN_TYPE_SPLIT,
                 ";" => tokens[i].r#type = TOKEN_TYPE_SPLIT,
+                "." => tokens[i].r#type = TOKEN_TYPE_DOT,
                 _ => {}
             }
         }

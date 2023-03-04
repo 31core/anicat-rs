@@ -3,7 +3,7 @@ use super::token::Token;
 use super::vm::VM;
 use std::fmt::Debug;
 
-const AST_TYPES: [&str; 32] = [
+const AST_TYPES: [&str; 36] = [
     "AST_TYPE_UNDEFINED",
     "AST_TYPE_PROGRAM",
     "AST_TYPE_IDENTIFIER",
@@ -23,12 +23,15 @@ const AST_TYPES: [&str; 32] = [
     "AST_TYPE_SUB",
     "AST_TYPE_MUL",
     "AST_TYPE_DIV",
+    "AST_TYPE_MOD",
     "AST_TYPE_GT",
     "AST_TYPE_LT",
     "AST_TYPE_GE",
     "AST_TYPE_LE",
     "AST_TYPE_EQU",
     "AST_TYPE_NEQU",
+    "AST_TYPE_SHL",
+    "AST_TYPE_SHR",
     "AST_TYPE_AND",
     "AST_TYPE_OR",
     "AST_TYPE_VALUE",
@@ -36,9 +39,10 @@ const AST_TYPES: [&str; 32] = [
     "AST_TYPE_CONTINUE",
     "AST_TYPE_RETURN",
     "AST_TYPE_INDEX",
+    "AST_TYPE_CHILD",
 ];
 
-const TOKEN_TYPES: [&str; 30] = [
+const TOKEN_TYPES: [&str; 34] = [
     "TOKEN_TYPE_UNKOWN",
     "TOKEN_TYPE_NAME",
     "TOKEN_TYPE_KEYWORD",
@@ -54,6 +58,7 @@ const TOKEN_TYPES: [&str; 30] = [
     "TOKEN_TYPE_SUB",
     "TOKEN_TYPE_MUL",
     "TOKEN_TYPE_DIV",
+    "TOKEN_TYPE_MOD",
     "TOKEN_TYPE_GT",
     "TOKEN_TYPE_LT",
     "TOKEN_TYPE_ISEQU",
@@ -69,6 +74,9 @@ const TOKEN_TYPES: [&str; 30] = [
     "TOKEN_TYPE_NOT",
     "TOKEN_TYPE_LOGIC_AND",
     "TOKEN_TYPE_LOGIC_OR",
+    "TOKEN_TYPE_SHL",
+    "TOKEN_TYPE_SHR",
+    "TOKEN_TYPE_DOT",
 ];
 
 impl Debug for AstNode {
