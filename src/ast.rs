@@ -2,6 +2,48 @@ use super::token::*;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
+/**
+ * Usage: merge operators
+ *
+ * For example:
+ * ```
+ * merge_op(&mut top, |ast| ast.borrow().r#type == op);
+ * ```
+ * Before:
+ * ```text
+ *  top
+ * / | \
+ * A op B
+ * ```
+ * After:
+ * ```text
+ *  top
+ *   |
+ *  op
+ *  / \
+ * A   B
+ * ```
+*/
+fn merge_op<F>(top_ast: &mut AstNode, is_op: F)
+where
+    F: Fn(Rc<RefCell<AstNode>>) -> bool,
+{
+    let mut node_i = 0;
+    while node_i < top_ast.nodes.len() {
+        if is_op(Rc::clone(&top_ast.nodes[node_i])) {
+            let left = Rc::clone(&top_ast.nodes[node_i - 1]);
+            let right = Rc::clone(&top_ast.nodes[node_i + 1]);
+            top_ast.node_mut(node_i).push(left);
+            top_ast.node_mut(node_i).push(right);
+            /* remove left and right */
+            top_ast.remove(node_i - 1);
+            top_ast.remove(node_i);
+            node_i -= 1;
+        }
+        node_i += 1;
+    }
+}
+
 #[derive(Clone)]
 pub struct AstNode {
     pub r#type: u8,
@@ -38,6 +80,11 @@ impl AstNode {
             || self.r#type == AST_TYPE_SUB
             || self.r#type == AST_TYPE_MUL
             || self.r#type == AST_TYPE_DIV
+            || self.r#type == AST_TYPE_MOD
+            || self.r#type == AST_TYPE_AND
+            || self.r#type == AST_TYPE_OR
+            || self.r#type == AST_TYPE_SHL
+            || self.r#type == AST_TYPE_SHR
     }
     pub fn from_tokens<T>(tokens: &mut T) -> Self
     where
@@ -80,8 +127,10 @@ impl AstNode {
                 TOKEN_TYPE_DIV => new_node.r#type = AST_TYPE_DIV, // /
                 TOKEN_TYPE_MOD => new_node.r#type = AST_TYPE_MOD, // %
                 TOKEN_TYPE_EQU => new_node.r#type = AST_TYPE_VAR_SET_VALUE, // =
-                TOKEN_TYPE_LOGIC_AND => new_node.r#type = AST_TYPE_AND, // &&
-                TOKEN_TYPE_LOGIC_OR => new_node.r#type = AST_TYPE_OR, // ||
+                TOKEN_TYPE_AND => new_node.r#type = AST_TYPE_AND, // &&
+                TOKEN_TYPE_OR => new_node.r#type = AST_TYPE_OR,   // ||
+                TOKEN_TYPE_LOGIC_AND => new_node.r#type = AST_TYPE_LOGIC_AND, // &&
+                TOKEN_TYPE_LOGIC_OR => new_node.r#type = AST_TYPE_LOGIC_OR, // ||
                 TOKEN_TYPE_ISEQU => new_node.r#type = AST_TYPE_EQU, // ==
                 TOKEN_TYPE_NOTEQU => new_node.r#type = AST_TYPE_NEQU, // !=
                 TOKEN_TYPE_LT => new_node.r#type = AST_TYPE_LT,   // <
@@ -212,109 +261,31 @@ impl AstNode {
             }
             node_i += 1;
         }
-        /* merge '+' '-' '*' '/' nodes */
-        let mut node_i = 0;
-        while node_i < top_ast.nodes.len() {
-            /* operations */
-            if top_ast.node(node_i).is_operator() {
-                let left = Rc::clone(&top_ast.nodes[node_i - 1]);
-                let right = Rc::clone(&top_ast.nodes[node_i + 1]);
-
-                /*
-                Last node is ('+' or '-') and this node is ('*' or '/')
-                like this:
-                    node_i
-                      |
-                      v
-                  +   *
-                 / \
-                A   B
-                */
-                if (top_ast.node(node_i).r#type == AST_TYPE_MUL
-                    || top_ast.node(node_i).r#type == AST_TYPE_DIV)
-                    && (top_ast.node(node_i - 1).r#type == AST_TYPE_ADD
-                        || top_ast.node(node_i - 1).r#type == AST_TYPE_SUB)
-                {
-                    /*
-                    *'s right node point to B
-                      +   *
-                     / \ /
-                    A   B
-                    */
-                    top_ast
-                        .node_mut(node_i)
-                        .push(Rc::clone(&left.borrow().nodes[1]));
-                    /*
-                    *'s right node point to C
-                            |\
-                      +   * | C
-                     / \ / \+
-                    A   B
-                    */
-                    top_ast.node_mut(node_i).push(right);
-                    /*
-                    +'s right node point to *
-                      +
-                     / \
-                    A   *
-                       / \
-                      B   C
-                    */
-                    top_ast.node_mut(node_i - 1).nodes[1] = Rc::clone(&top_ast.nodes[node_i]);
-                    top_ast.nodes[node_i] = Rc::clone(&top_ast.nodes[node_i - 1]);
-                } else {
-                    top_ast.node_mut(node_i).push(left);
-                    top_ast.node_mut(node_i).push(right);
-                }
-
-                /* remove left and right */
-                top_ast.remove(node_i - 1);
-                top_ast.remove(node_i);
-                node_i -= 1;
-            }
-            node_i += 1;
-        }
-        /* merge '==' '!=' '<' '>' '<=' '>=' nodes */
-        let mut node_i = 0;
-        while node_i < top_ast.nodes.len() {
-            if top_ast.node(node_i).r#type == AST_TYPE_EQU
-                || top_ast.node(node_i).r#type == AST_TYPE_NEQU
-                || top_ast.node(node_i).r#type == AST_TYPE_LT
-                || top_ast.node(node_i).r#type == AST_TYPE_GT
-                || top_ast.node(node_i).r#type == AST_TYPE_LE
-                || top_ast.node(node_i).r#type == AST_TYPE_GE
-                || top_ast.node(node_i).r#type == AST_TYPE_MOD
-                || top_ast.node(node_i).r#type == AST_TYPE_SHL
-                || top_ast.node(node_i).r#type == AST_TYPE_SHR
-            {
-                let left = Rc::clone(&top_ast.nodes[node_i - 1]);
-                let right = Rc::clone(&top_ast.nodes[node_i + 1]);
-                top_ast.node_mut(node_i).push(left);
-                top_ast.node_mut(node_i).push(right);
-                /* remove left and right */
-                top_ast.remove(node_i - 1);
-                top_ast.remove(node_i);
-                node_i -= 1;
-            }
-            node_i += 1;
-        }
-        /* merge '&&' '||' nodes */
-        let mut node_i = 0;
-        while node_i < top_ast.nodes.len() {
-            if top_ast.node(node_i).r#type == AST_TYPE_AND
-                || top_ast.node(node_i).r#type == AST_TYPE_OR
-            {
-                let left = Rc::clone(&top_ast.nodes[node_i - 1]);
-                let right = Rc::clone(&top_ast.nodes[node_i + 1]);
-                top_ast.node_mut(node_i).push(left);
-                top_ast.node_mut(node_i).push(right);
-                /* remove left and right */
-                top_ast.remove(node_i - 1);
-                top_ast.remove(node_i);
-                node_i -= 1;
-            }
-            node_i += 1;
-        }
+        /* priority is from high to low */
+        merge_op(&mut top_ast, |ast| {
+            ast.borrow().r#type == AST_TYPE_EQU
+                || ast.borrow().r#type == AST_TYPE_NEQU
+                || ast.borrow().r#type == AST_TYPE_LT
+                || ast.borrow().r#type == AST_TYPE_GT
+                || ast.borrow().r#type == AST_TYPE_LE
+                || ast.borrow().r#type == AST_TYPE_GE
+        });
+        merge_op(&mut top_ast, |ast| {
+            ast.borrow().r#type == AST_TYPE_LOGIC_AND || ast.borrow().r#type == AST_TYPE_LOGIC_OR
+        });
+        merge_op(&mut top_ast, |ast| {
+            ast.borrow().r#type == AST_TYPE_MUL
+                || ast.borrow().r#type == AST_TYPE_DIV
+                || ast.borrow().r#type == AST_TYPE_MOD
+        });
+        merge_op(&mut top_ast, |ast| {
+            ast.borrow().r#type == AST_TYPE_ADD || ast.borrow().r#type == AST_TYPE_SUB
+        });
+        merge_op(&mut top_ast, |ast| {
+            ast.borrow().r#type == AST_TYPE_SHL || ast.borrow().r#type == AST_TYPE_SHR
+        });
+        merge_op(&mut top_ast, |ast| ast.borrow().r#type == AST_TYPE_AND);
+        merge_op(&mut top_ast, |ast| ast.borrow().r#type == AST_TYPE_OR);
         /* handle 'return' '=' node */
         let mut node_i = 0;
         while node_i < top_ast.nodes.len() {
@@ -393,11 +364,13 @@ pub const AST_TYPE_EQU: u8 = 24; // ==
 pub const AST_TYPE_NEQU: u8 = 25; // !=
 pub const AST_TYPE_SHL: u8 = 26; // <<
 pub const AST_TYPE_SHR: u8 = 27; // >>
-pub const AST_TYPE_AND: u8 = 28;
-pub const AST_TYPE_OR: u8 = 29;
-pub const AST_TYPE_VALUE: u8 = 30;
-pub const AST_TYPE_BREAK: u8 = 31;
-pub const AST_TYPE_CONTINUE: u8 = 32;
-pub const AST_TYPE_RETURN: u8 = 33;
-pub const AST_TYPE_INDEX: u8 = 34;
-pub const AST_TYPE_CHILD: u8 = 35;
+pub const AST_TYPE_AND: u8 = 28; // &
+pub const AST_TYPE_OR: u8 = 29; // |
+pub const AST_TYPE_LOGIC_AND: u8 = 30; // &&
+pub const AST_TYPE_LOGIC_OR: u8 = 31; // ||
+pub const AST_TYPE_VALUE: u8 = 32;
+pub const AST_TYPE_BREAK: u8 = 33;
+pub const AST_TYPE_CONTINUE: u8 = 34;
+pub const AST_TYPE_RETURN: u8 = 35;
+pub const AST_TYPE_INDEX: u8 = 36;
+pub const AST_TYPE_CHILD: u8 = 37;

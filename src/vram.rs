@@ -22,6 +22,9 @@ impl VRAM {
     }
     /// dump from VRAM
     pub fn dump(&self, addr: u64, size: u64) -> &[u8] {
+        if addr + size > self.size {
+            panic!("VRAM overflow");
+        }
         &self.area[addr as usize..(addr + size) as usize]
     }
 }

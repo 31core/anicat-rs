@@ -29,27 +29,27 @@ Accepted value types:
 
 |Operation|Value 1    |Value 2     |Value 3|Description        |
 |---------|-----------|------------|-------|-------------------|
-|mov      |target[r]  |source[r,v] |       |move value         |
-|add      |source[r]  |value[r,v]  |       |add                |
-|sub      |source[r]  |value[r,v]  |       |subtract           |
-|mul      |source[r]  |value[r,v]  |       |divide             |
-|div      |source[r]  |value[r,v]  |       |multiply           |
-|mod      |source[r]  |value[r,v]  |       |modular            |
-|shl      |source[r]  |value[r,v]  |       |shift logic left   |
-|shr      |source[r]  |value[r,v]  |       |shift logic right  |
-|push     |source[r]  |-           |       |push stack         |
-|load     |register[r]|address[r,v]|       |load from memory   |
-|store    |register[r]|address[r,v]|       |store to memory    |
-|pop      |source[r]  |-           |       |pop stack          |
-|in       |device[r,v]|data[r,v]   |       |input data         |
-|out      |device[r,v]|data[r,v]   |       |output data        |
-|cmp      |val1[r,v]  |val2[r,v]   |       |compare            |
-|ret      |-          |-           |       |return             |
-|jmp      |addr[r,v]  |-           |       |jump to            |
-|je       |addr[r,v]  |-           |       |jump if equal      |
-|jne      |addr[r,v]  |-           |       |jump if not equal  |
-|jg       |addr[r,v]  |-           |       |jump if greater    |
-|jl       |addr[r,v]  |-           |       |jump if less       |
-|jng      |addr[r,v]  |-           |       |jump if not greater|
-|jnl      |addr[r,v]  |-           |       |jump if not less   |
-|hal      |-          |-           |       |halt               |
+|mov      |target[r]  |source[r,v] |-      |move value         |
+|add      |source[r]  |value[r,v]  |-      |add                |
+|sub      |source[r]  |value[r,v]  |-      |subtract           |
+|mul      |source[r]  |value[r,v]  |-      |divide             |
+|div      |source[r]  |value[r,v]  |-      |multiply           |
+|mod      |source[r]  |value[r,v]  |-      |modular            |
+|shl      |source[r]  |value[r,v]  |-      |shift logic left   |
+|shr      |source[r]  |value[r,v]  |-      |shift logic right  |
+|push     |source[r]  |-           |-      |push stack         |
+|load     |register[r]|address[r,v]|-      |load from memory   |
+|store    |register[r]|address[r,v]|-      |store to memory    |
+|pop      |source[r]  |-           |-      |pop stack          |
+|in       |device[r,v]|data[r,v]   |-      |input data         |
+|out      |device[r,v]|data[r,v]   |-      |output data        |
+|cmp      |val1[r,v]  |val2[r,v]   |-      |compare            |
+|ret      |-          |-           |-      |return             |
+|jmp      |addr[r,v]  |-           |-      |jump to            |
+|je       |addr[r,v]  |-           |-      |jump if equal      |
+|jne      |addr[r,v]  |-           |-      |jump if not equal  |
+|jg       |addr[r,v]  |-           |-      |jump if greater    |
+|jl       |addr[r,v]  |-           |-      |jump if less       |
+|jng      |addr[r,v]  |-           |-      |jump if not greater|
+|jnl      |addr[r,v]  |-           |-      |jump if not less   |
+|hal      |-          |-           |-      |halt               |

@@ -36,15 +36,17 @@ pub const VM_OP_STORE64: u8 = 0x1b;
 pub const VM_OP_MOD: u8 = 0x1c;
 pub const VM_OP_SHL: u8 = 0x1d;
 pub const VM_OP_SHR: u8 = 0x1e;
-pub const VM_OP_HAL: u8 = 0x1f;
+pub const VM_OP_AND: u8 = 0x1f;
+pub const VM_OP_OR: u8 = 0x20;
+pub const VM_OP_HAL: u8 = 0x21;
 
 pub const VM_REG_C0: u8 = 0x20;
 pub const VM_REG_C1: u8 = 0x21;
 pub const VM_REG_C2: u8 = 0x22;
 pub const VM_REG_C3: u8 = 0x23;
-pub const VM_REG_SP: u8 = 0x24; // Stack Pointer
-pub const VM_REG_IP: u8 = 0x25; // Instruction Pointer
-pub const VM_REG_AR: u8 = 0x26; // Address Register
+pub const VM_REG_SP: u8 = 0x24;
+pub const VM_REG_IP: u8 = 0x25;
+pub const VM_REG_AR: u8 = 0x26;
 
 /**
  * value types (0x20 - 0x32)
@@ -147,8 +149,11 @@ pub struct VM {
     pub c1: u64,
     pub c2: u64,
     pub c3: u64,
+    /// Instruction Pointer
     pub ip: u64,
+    /// Stack Pointer
     pub sp: u64,
+    /// Address Register
     pub ar: u64,
 
     /* flags */
@@ -310,6 +315,22 @@ impl VM {
                 let target = opcode.get_value(1, self);
                 if let AssemblyValue::Register(register) = opcode.values[0] {
                     self.set_register(register, source % target);
+                }
+            }
+            /* and source, target */
+            if opcode.op == VM_OP_AND {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source & target);
+                }
+            }
+            /* or source, target */
+            if opcode.op == VM_OP_OR {
+                let source = opcode.get_value(0, self);
+                let target = opcode.get_value(1, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    self.set_register(register, source | target);
                 }
             }
             /* shl source, target */

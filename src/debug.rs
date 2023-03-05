@@ -3,7 +3,7 @@ use super::token::Token;
 use super::vm::VM;
 use std::fmt::Debug;
 
-const AST_TYPES: [&str; 36] = [
+const AST_TYPES: [&str; 38] = [
     "AST_TYPE_UNDEFINED",
     "AST_TYPE_PROGRAM",
     "AST_TYPE_IDENTIFIER",
@@ -34,6 +34,8 @@ const AST_TYPES: [&str; 36] = [
     "AST_TYPE_SHR",
     "AST_TYPE_AND",
     "AST_TYPE_OR",
+    "AST_TYPE_LOGIC_AND",
+    "AST_TYPE_LOGIC_OR",
     "AST_TYPE_VALUE",
     "AST_TYPE_BREAK",
     "AST_TYPE_CONTINUE",
