@@ -86,6 +86,12 @@ impl AstNode {
             || self.r#type == AST_TYPE_SHL
             || self.r#type == AST_TYPE_SHR
     }
+    pub fn get_value(&self) -> Result<u64, ()> {
+        if self.r#type == AST_TYPE_VALUE {
+            return Ok(self.data.parse().unwrap());
+        }
+        Err(())
+    }
     pub fn from_tokens<T>(tokens: &mut T) -> Self
     where
         T: Iterator<Item = Token>,
@@ -100,7 +106,7 @@ impl AstNode {
             let mut new_node = AstNode::new();
             new_node.data = token.name.clone();
             /* keywords */
-            if token.r#type == TOKEN_TYPE_KEYWORD {
+            if token.r#type == TokenType::Keyword {
                 match &token.name[..] {
                     "func" => new_node.r#type = AST_TYPE_FUNC_DEF,
                     "var" => new_node.r#type = AST_TYPE_VAR_DECLARE,
@@ -118,47 +124,47 @@ impl AstNode {
                 }
             }
             match token.r#type {
-                TOKEN_TYPE_NUMBER => new_node.r#type = AST_TYPE_VALUE,
-                TOKEN_TYPE_STRING => new_node.r#type = AST_TYPE_VALUE,
-                TOKEN_TYPE_CHAR => new_node.r#type = AST_TYPE_VALUE,
-                TOKEN_TYPE_ADD => new_node.r#type = AST_TYPE_ADD, // +
-                TOKEN_TYPE_SUB => new_node.r#type = AST_TYPE_SUB, // -
-                TOKEN_TYPE_MUL => new_node.r#type = AST_TYPE_MUL, // *
-                TOKEN_TYPE_DIV => new_node.r#type = AST_TYPE_DIV, // /
-                TOKEN_TYPE_MOD => new_node.r#type = AST_TYPE_MOD, // %
-                TOKEN_TYPE_EQU => new_node.r#type = AST_TYPE_VAR_SET_VALUE, // =
-                TOKEN_TYPE_AND => new_node.r#type = AST_TYPE_AND, // &&
-                TOKEN_TYPE_OR => new_node.r#type = AST_TYPE_OR,   // ||
-                TOKEN_TYPE_LOGIC_AND => new_node.r#type = AST_TYPE_LOGIC_AND, // &&
-                TOKEN_TYPE_LOGIC_OR => new_node.r#type = AST_TYPE_LOGIC_OR, // ||
-                TOKEN_TYPE_ISEQU => new_node.r#type = AST_TYPE_EQU, // ==
-                TOKEN_TYPE_NOTEQU => new_node.r#type = AST_TYPE_NEQU, // !=
-                TOKEN_TYPE_LT => new_node.r#type = AST_TYPE_LT,   // <
-                TOKEN_TYPE_GT => new_node.r#type = AST_TYPE_GT,   // >
-                TOKEN_TYPE_LE => new_node.r#type = AST_TYPE_LE,   // <=
-                TOKEN_TYPE_GE => new_node.r#type = AST_TYPE_GE,   // >=
-                TOKEN_TYPE_SHL => new_node.r#type = AST_TYPE_SHL, // <<
-                TOKEN_TYPE_SHR => new_node.r#type = AST_TYPE_SHR, // >>
-                TOKEN_TYPE_DOT => new_node.r#type = AST_TYPE_CHILD,
-                TOKEN_TYPE_NAME => new_node.r#type = AST_TYPE_IDENTIFIER,
-                TOKEN_TYPE_SPLIT => continue,
-                TOKEN_TYPE_RS_BKT => break,
-                TOKEN_TYPE_RM_BKT => break,
-                TOKEN_TYPE_RL_BKT => break,
+                TokenType::Number => new_node.r#type = AST_TYPE_VALUE,
+                TokenType::String => new_node.r#type = AST_TYPE_VALUE,
+                TokenType::Char => new_node.r#type = AST_TYPE_VALUE,
+                TokenType::Add => new_node.r#type = AST_TYPE_ADD, // +
+                TokenType::Sub => new_node.r#type = AST_TYPE_SUB, // -
+                TokenType::Mul => new_node.r#type = AST_TYPE_MUL, // *
+                TokenType::Div => new_node.r#type = AST_TYPE_DIV, // /
+                TokenType::Mod => new_node.r#type = AST_TYPE_MOD, // %
+                TokenType::Equ => new_node.r#type = AST_TYPE_VAR_SET_VALUE, // =
+                TokenType::And => new_node.r#type = AST_TYPE_AND, // &&
+                TokenType::Or => new_node.r#type = AST_TYPE_OR,   // ||
+                TokenType::LogicAnd => new_node.r#type = AST_TYPE_LOGIC_AND, // &&
+                TokenType::LogicOr => new_node.r#type = AST_TYPE_LOGIC_OR, // ||
+                TokenType::IsEqu => new_node.r#type = AST_TYPE_EQU, // ==
+                TokenType::NotEqu => new_node.r#type = AST_TYPE_NEQU, // !=
+                TokenType::LT => new_node.r#type = AST_TYPE_LT,   // <
+                TokenType::GT => new_node.r#type = AST_TYPE_GT,   // >
+                TokenType::Le => new_node.r#type = AST_TYPE_LE,   // <=
+                TokenType::Ge => new_node.r#type = AST_TYPE_GE,   // >=
+                TokenType::Shl => new_node.r#type = AST_TYPE_SHL, // <<
+                TokenType::Shr => new_node.r#type = AST_TYPE_SHR, // >>
+                TokenType::Dot => new_node.r#type = AST_TYPE_CHILD,
+                TokenType::Name => new_node.r#type = AST_TYPE_IDENTIFIER,
+                TokenType::Split => continue,
+                TokenType::RsBkt => break,
+                TokenType::RmBkt => break,
+                TokenType::RlBkt => break,
                 _ => {}
             }
             /* ( */
-            if token.r#type == TOKEN_TYPE_LS_BKT {
+            if token.r#type == TokenType::LsBkt {
                 new_node = AstNode::from_tokens(tokens);
                 new_node.r#type = AST_TYPE_PARAMS;
             }
             /* [ */
-            if token.r#type == TOKEN_TYPE_LM_BKT {
+            if token.r#type == TokenType::LmBkt {
                 new_node = AstNode::from_tokens(tokens);
                 new_node.r#type = AST_TYPE_INDEX;
             }
             /* { */
-            if token.r#type == TOKEN_TYPE_LL_BKT {
+            if token.r#type == TokenType::LlBkt {
                 new_node = AstNode::from_tokens(tokens);
                 new_node.r#type = AST_TYPE_CODE_BLOCK;
             }

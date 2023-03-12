@@ -3,6 +3,7 @@ pub mod ast;
 pub mod compile;
 pub mod debug;
 pub mod token;
+pub mod variable;
 pub mod vm;
 pub mod vram;
 
@@ -18,7 +19,14 @@ fn main() {
     let ast = AstNode::from_tokens(&mut tokens.into_iter());
     //debug::print_ast(&ast);
     let mut byte_code = Vec::new();
-    compile::compile(&mut byte_code, &ast, None);
+    let result = compile::compile(&mut byte_code, &ast, None);
+    match result {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    }
     byte_code.extend(assembly::assemblize(vm::VM_OP_HAL, &[]));
 
     std::fs::write("byte_code", &byte_code).unwrap();

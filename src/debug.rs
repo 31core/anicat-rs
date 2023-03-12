@@ -44,43 +44,6 @@ const AST_TYPES: [&str; 38] = [
     "AST_TYPE_CHILD",
 ];
 
-const TOKEN_TYPES: [&str; 34] = [
-    "TOKEN_TYPE_UNKOWN",
-    "TOKEN_TYPE_NAME",
-    "TOKEN_TYPE_KEYWORD",
-    "TOKEN_TYPE_EQU",
-    "TOKEN_TYPE_EXPLAIN",
-    "TOKEN_TYPE_LS_BKT",
-    "TOKEN_TYPE_LM_BKT",
-    "TOKEN_TYPE_LL_BKT",
-    "TOKEN_TYPE_RS_BKT",
-    "TOKEN_TYPE_RM_BKT",
-    "TOKEN_TYPE_RL_BKT",
-    "TOKEN_TYPE_ADD",
-    "TOKEN_TYPE_SUB",
-    "TOKEN_TYPE_MUL",
-    "TOKEN_TYPE_DIV",
-    "TOKEN_TYPE_MOD",
-    "TOKEN_TYPE_GT",
-    "TOKEN_TYPE_LT",
-    "TOKEN_TYPE_ISEQU",
-    "TOKEN_TYPE_NOTEQU",
-    "TOKEN_TYPE_GE",
-    "TOKEN_TYPE_LE",
-    "TOKEN_TYPE_NUMBER",
-    "TOKEN_TYPE_CHAR",
-    "TOKEN_TYPE_SPLIT",
-    "TOKEN_TYPE_STRING",
-    "TOKEN_TYPE_AND",
-    "TOKEN_TYPE_OR",
-    "TOKEN_TYPE_NOT",
-    "TOKEN_TYPE_LOGIC_AND",
-    "TOKEN_TYPE_LOGIC_OR",
-    "TOKEN_TYPE_SHL",
-    "TOKEN_TYPE_SHR",
-    "TOKEN_TYPE_DOT",
-];
-
 impl Debug for AstNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {}", AST_TYPES[self.r#type as usize], self.data)?;
@@ -90,7 +53,7 @@ impl Debug for AstNode {
 
 impl Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}\t{}", self.name, TOKEN_TYPES[self.r#type as usize])?;
+        write!(f, "{}\t{:?}", self.name, self.r#type)?;
         Ok(())
     }
 }

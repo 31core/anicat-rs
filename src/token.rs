@@ -1,48 +1,51 @@
 #[derive(Clone)]
 pub struct Token {
-    pub r#type: u8,
+    pub r#type: TokenType,
     pub name: String,
 }
 
-pub const TOKEN_TYPE_UNKOWN: u8 = 0;
-pub const TOKEN_TYPE_NAME: u8 = 1;
-pub const TOKEN_TYPE_KEYWORD: u8 = 2;
-pub const TOKEN_TYPE_EQU: u8 = 3; // =
-pub const TOKEN_TYPE_EXPLAIN: u8 = 4; // :
-pub const TOKEN_TYPE_LS_BKT: u8 = 5; // (
-pub const TOKEN_TYPE_LM_BKT: u8 = 6; // [
-pub const TOKEN_TYPE_LL_BKT: u8 = 7; // {
-pub const TOKEN_TYPE_RS_BKT: u8 = 8; // )
-pub const TOKEN_TYPE_RM_BKT: u8 = 9; // ]
-pub const TOKEN_TYPE_RL_BKT: u8 = 10; // }
-pub const TOKEN_TYPE_ADD: u8 = 11; // +
-pub const TOKEN_TYPE_SUB: u8 = 12; // -
-pub const TOKEN_TYPE_MUL: u8 = 13; // *
-pub const TOKEN_TYPE_DIV: u8 = 14; // /
-pub const TOKEN_TYPE_MOD: u8 = 15; // %
-pub const TOKEN_TYPE_GT: u8 = 16; // >
-pub const TOKEN_TYPE_LT: u8 = 17; // <
-pub const TOKEN_TYPE_ISEQU: u8 = 18; // ==
-pub const TOKEN_TYPE_NOTEQU: u8 = 19; // !=
-pub const TOKEN_TYPE_GE: u8 = 20; // >=
-pub const TOKEN_TYPE_LE: u8 = 21; // <=
-pub const TOKEN_TYPE_NUMBER: u8 = 22;
-pub const TOKEN_TYPE_CHAR: u8 = 23;
-pub const TOKEN_TYPE_SPLIT: u8 = 24;
-pub const TOKEN_TYPE_STRING: u8 = 25;
-pub const TOKEN_TYPE_AND: u8 = 26; // *
-pub const TOKEN_TYPE_OR: u8 = 27; // |
-pub const TOKEN_TYPE_NOT: u8 = 28; // !
-pub const TOKEN_TYPE_LOGIC_AND: u8 = 29; // &&
-pub const TOKEN_TYPE_LOGIC_OR: u8 = 30; // ||
-pub const TOKEN_TYPE_SHL: u8 = 31; // <<
-pub const TOKEN_TYPE_SHR: u8 = 32; // >>
-pub const TOKEN_TYPE_DOT: u8 = 33; // .
+#[derive(Clone, PartialEq, Debug)]
+pub enum TokenType {
+    Unkown,
+    Name,
+    Keyword,
+    Equ,     // =
+    Explain, // :
+    LsBkt,   // (
+    LmBkt,   // [
+    LlBkt,   // {
+    RsBkt,   // )
+    RmBkt,   // ]
+    RlBkt,   // }
+    Add,     // +
+    Sub,     // -
+    Mul,     // *
+    Div,     // /
+    Mod,     // %
+    GT,      // >
+    LT,      // <
+    IsEqu,   // ==
+    NotEqu,  // !=
+    Ge,      // >=
+    Le,      // <=
+    Number,
+    Char,
+    Split,
+    String,
+    And,      // *
+    Or,       // |
+    Not,      // !
+    LogicAnd, // &&
+    LogicOr,  // ||
+    Shl,      // <<
+    Shr,      // >>
+    Dot,      // .
+}
 
 impl Token {
     pub fn new() -> Self {
         Token {
-            r#type: 0,
+            r#type: TokenType::Unkown,
             name: String::new(),
         }
     }
@@ -178,18 +181,18 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
     let mut i = 0;
     /* detect types */
     while i < tokens.len() {
-        tokens[i].r#type = TOKEN_TYPE_NAME;
+        tokens[i].r#type = TokenType::Name;
         if is_keyword(&tokens[i].name) {
-            tokens[i].r#type = TOKEN_TYPE_KEYWORD;
+            tokens[i].r#type = TokenType::Keyword;
         } else if is_number(&tokens[i].name) {
-            tokens[i].r#type = TOKEN_TYPE_NUMBER;
+            tokens[i].r#type = TokenType::Number;
         }
         /* comment */
         else if tokens[i].name.starts_with("//") || tokens[i].name.starts_with("/*") {
             tokens.remove(i);
             i -= 1;
         } else if tokens[i].name.starts_with("\"") && tokens[i].name.ends_with("\"") {
-            tokens[i].r#type = TOKEN_TYPE_STRING;
+            tokens[i].r#type = TokenType::String;
             /* replace escape characters */
             tokens[i].name = tokens[i].name.replace("\\\"", "\"");
             tokens[i].name = tokens[i].name.replace("\\n", "\n");
@@ -199,38 +202,38 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
             && tokens[i].name.as_bytes()[0] == '\'' as u8
             && tokens[i].name.as_bytes()[2] == '\'' as u8
         {
-            tokens[i].r#type = TOKEN_TYPE_CHAR;
+            tokens[i].r#type = TokenType::Char;
         } else if tokens[i].name == "&" && tokens[i + 1].name == "&" {
-            tokens[i].r#type = TOKEN_TYPE_LOGIC_AND;
+            tokens[i].r#type = TokenType::LogicAnd;
             tokens[i].name = "&&".to_string();
             tokens.remove(i + 1);
         } else if tokens[i].name == "|" && tokens[i + 1].name == "|" {
-            tokens[i].r#type = TOKEN_TYPE_LOGIC_OR;
+            tokens[i].r#type = TokenType::LogicOr;
             tokens[i].name = "||".to_string();
             tokens.remove(i + 1);
         } else if tokens[i].name == "=" && tokens[i + 1].name == "=" {
-            tokens[i].r#type = TOKEN_TYPE_ISEQU;
+            tokens[i].r#type = TokenType::IsEqu;
             tokens[i].name = "==".to_string();
             tokens.remove(i + 1);
         } else if tokens[i].name == "!" && tokens[i + 1].name == "=" {
-            tokens[i].r#type = TOKEN_TYPE_NOTEQU;
+            tokens[i].r#type = TokenType::NotEqu;
             tokens[i].name = "!=".to_string();
             tokens.remove(i + 1);
         } else if tokens[i].name == "-" && tokens[i + 1].name == ">" {
-            tokens[i].r#type = TOKEN_TYPE_EXPLAIN;
+            tokens[i].r#type = TokenType::Explain;
             tokens[i].name = "->".to_string();
             tokens.remove(i + 1);
         }
         /* << */
         else if tokens[i].name == "<" && tokens[i + 1].name == "<" {
             tokens[i].name = "<<".to_string();
-            tokens[i].r#type = TOKEN_TYPE_SHL;
+            tokens[i].r#type = TokenType::Shl;
             tokens.remove(i + 1);
         }
         /* >> */
         else if tokens[i].name == ">" && tokens[i + 1].name == ">" {
             tokens[i].name = ">>".to_string();
-            tokens[i].r#type = TOKEN_TYPE_SHR;
+            tokens[i].r#type = TokenType::Shr;
             tokens.remove(i + 1);
         }
         /* <, >, <=, >= */
@@ -239,39 +242,39 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
             if tokens[i + 1].name == "=" {
                 if tokens[i].name == ">" {
                     tokens[i].name = ">=".to_string();
-                    tokens[i].r#type = TOKEN_TYPE_GE;
+                    tokens[i].r#type = TokenType::Ge;
                 } else {
                     tokens[i].name = "<=".to_string();
-                    tokens[i].r#type = TOKEN_TYPE_LE;
+                    tokens[i].r#type = TokenType::Le;
                 }
 
                 tokens.remove(i + 1);
             } else if tokens[i].name == ">" {
-                tokens[i].r#type = TOKEN_TYPE_GT;
+                tokens[i].r#type = TokenType::GT;
             } else {
-                tokens[i].r#type = TOKEN_TYPE_LT;
+                tokens[i].r#type = TokenType::LT;
             }
         } else if tokens[i].name.len() == 1 {
             match &tokens[i].name[..] {
-                "&" => tokens[i].r#type = TOKEN_TYPE_AND,
-                "|" => tokens[i].r#type = TOKEN_TYPE_OR,
-                "!" => tokens[i].r#type = TOKEN_TYPE_NOT,
-                "=" => tokens[i].r#type = TOKEN_TYPE_EQU,
-                ":" => tokens[i].r#type = TOKEN_TYPE_EXPLAIN,
-                "+" => tokens[i].r#type = TOKEN_TYPE_ADD,
-                "-" => tokens[i].r#type = TOKEN_TYPE_SUB,
-                "*" => tokens[i].r#type = TOKEN_TYPE_MUL,
-                "/" => tokens[i].r#type = TOKEN_TYPE_DIV,
-                "%" => tokens[i].r#type = TOKEN_TYPE_MOD,
-                "(" => tokens[i].r#type = TOKEN_TYPE_LS_BKT,
-                "[" => tokens[i].r#type = TOKEN_TYPE_LM_BKT,
-                "{" => tokens[i].r#type = TOKEN_TYPE_LL_BKT,
-                ")" => tokens[i].r#type = TOKEN_TYPE_RS_BKT,
-                "]" => tokens[i].r#type = TOKEN_TYPE_RM_BKT,
-                "}" => tokens[i].r#type = TOKEN_TYPE_RL_BKT,
-                "," => tokens[i].r#type = TOKEN_TYPE_SPLIT,
-                ";" => tokens[i].r#type = TOKEN_TYPE_SPLIT,
-                "." => tokens[i].r#type = TOKEN_TYPE_DOT,
+                "&" => tokens[i].r#type = TokenType::And,
+                "|" => tokens[i].r#type = TokenType::Or,
+                "!" => tokens[i].r#type = TokenType::Not,
+                "=" => tokens[i].r#type = TokenType::Equ,
+                ":" => tokens[i].r#type = TokenType::Explain,
+                "+" => tokens[i].r#type = TokenType::Add,
+                "-" => tokens[i].r#type = TokenType::Sub,
+                "*" => tokens[i].r#type = TokenType::Mul,
+                "/" => tokens[i].r#type = TokenType::Div,
+                "%" => tokens[i].r#type = TokenType::Mod,
+                "(" => tokens[i].r#type = TokenType::LsBkt,
+                "[" => tokens[i].r#type = TokenType::LmBkt,
+                "{" => tokens[i].r#type = TokenType::LlBkt,
+                ")" => tokens[i].r#type = TokenType::RsBkt,
+                "]" => tokens[i].r#type = TokenType::RmBkt,
+                "}" => tokens[i].r#type = TokenType::RlBkt,
+                "," => tokens[i].r#type = TokenType::Split,
+                ";" => tokens[i].r#type = TokenType::Split,
+                "." => tokens[i].r#type = TokenType::Dot,
                 _ => {}
             }
         }
