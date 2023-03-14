@@ -57,15 +57,16 @@ pub const KEYWORDS: [&str; 14] = [
 ];
 
 /// detect the positions of symbols
-fn get_flag_pos(str: &str) -> Result<Vec<isize>, &str> {
-    let mut ret: Vec<isize> = vec![];
-    ret.push(-1);
-    pub const SYMBOLS: &str = " \"\\=()[]{}<>,.:;+-*/&|!\t\n";
+fn parse_tokens(str: &str) -> Result<Vec<Token>, &str> {
+    let mut ret: Vec<Token> = Vec::new();
+    let mut this_token = Token::new();
+    pub const SYMBOLS: &str = " \"\\=()[]{}<>,.:;+-*/&|!\t\r\n";
     let mut in_string = false;
     let mut in_single_line_comment = false;
     let mut in_multiple_line_comment = false;
     let mut last_char = ' ';
     for i in 0..str.len() {
+        this_token.name.push_str(&str[i..i + 1]);
         for sym in SYMBOLS.chars() {
             if str.as_bytes()[i] == sym as u8 {
                 if sym == '"' && last_char != '\\' {
@@ -98,7 +99,17 @@ fn get_flag_pos(str: &str) -> Result<Vec<isize>, &str> {
                 }
                 /* if in a string, don't put an in-string synbol into the 'ret' list */
                 if !in_string && !in_single_line_comment && !in_multiple_line_comment {
-                    ret.push(i as isize);
+                    this_token.name.pop();
+                    if this_token.name.len() > 0 {
+                        ret.push(this_token);
+                        this_token = Token::new();
+                    }
+
+                    if sym != ' ' && sym != '\t' && sym != '\n' && sym != '\r' {
+                        let mut symbol_token = Token::new();
+                        symbol_token.name.push_str(&str[i..i + 1]);
+                        ret.push(symbol_token);
+                    }
                 }
 
                 last_char = sym;
@@ -106,7 +117,9 @@ fn get_flag_pos(str: &str) -> Result<Vec<isize>, &str> {
             }
         }
     }
-    ret.push(str.len() as isize);
+    if this_token.name.len() > 0 {
+        ret.push(this_token);
+    }
     if in_string {
         return Err("sybmol '\"' doesn't match.");
     }
@@ -137,46 +150,7 @@ fn is_number(str: &str) -> bool {
  Generate tokens
 */
 pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
-    let mut tokens: Vec<Token> = vec![];
-    let symbol_list;
-    match get_flag_pos(code) {
-        Ok(lis) => symbol_list = lis,
-        Err(err) => return Err(err),
-    }
-    let code = format!("{code} ");
-    for i in 1..symbol_list.len() {
-        /* single byte symbol */
-        if symbol_list[i] - symbol_list[i - 1] == 1 {
-            let mut new_tokens = Token::new();
-            new_tokens.name =
-                code[symbol_list[i] as usize..(symbol_list[i] + 1) as usize].to_string();
-            tokens.push(new_tokens);
-        } else {
-            let mut new_tokens = Token::new();
-            new_tokens.name =
-                code[(symbol_list[i - 1] + 1) as usize..symbol_list[i] as usize].to_string();
-            tokens.push(new_tokens);
-
-            let mut new_tokens = Token::new();
-            new_tokens.name =
-                code[symbol_list[i] as usize..(symbol_list[i] + 1) as usize].to_string();
-            tokens.push(new_tokens);
-        }
-    }
-
-    /* delete tokens with meaningless names */
-    let mut i = 0;
-    while i < tokens.len() {
-        if tokens[i].name == " "
-            || tokens[i].name == "\t"
-            || tokens[i].name == "\n"
-            || tokens[i].name == "\r"
-        {
-            tokens.remove(i);
-            i -= 1;
-        }
-        i += 1;
-    }
+    let mut tokens = parse_tokens(code)?;
 
     let mut i = 0;
     /* detect types */
