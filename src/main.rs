@@ -18,7 +18,7 @@ fn main() {
     let tokens = token::generate_token(&code).unwrap();
     /* generate AST */
     let ast = AstNode::from_tokens(&mut tokens.into_iter());
-    //debug::print_ast(&ast);
+    debug::print_ast(&ast);
     let mut byte_code = Vec::new();
     let mut symbols = symbol::Symbols::new();
     let result = compile::compile(&mut byte_code, &ast, None, &mut symbols);

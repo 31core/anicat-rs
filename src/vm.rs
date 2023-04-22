@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 
 pub const VM_STACK_SIZE: usize = 8 * 1024 * 1024;
 
-/// op codes (0x01 - 0x22)
+// op codes (0x01 - 0x22)
 pub const VM_OP_MOV: u8 = 0x01;
 pub const VM_OP_IN: u8 = 0x02;
 pub const VM_OP_OUT: u8 = 0x03;
@@ -52,9 +52,9 @@ pub const VM_REG_SP: u8 = 0x24;
 pub const VM_REG_IP: u8 = 0x25;
 pub const VM_REG_AR: u8 = 0x26;
 
-/**
- * value types (0x20 - 0x32)
- * This takes 3-bit
+/*
+ value types (0x20 - 0x32)
+ This takes 3-bit
  */
 pub const VM_TYPE_VAL8: u8 = 1;
 pub const VM_TYPE_VAL16: u8 = 2;
@@ -67,17 +67,6 @@ pub const VM_DEV_STDOUT: u8 = 1;
 pub const VM_DEV_STDERR: u8 = 2;
 /**
  * Parse type from bytes slice.  
- * `type`:  
- * * `VM_TYPE_MEM`: size of memory
- * * `VM_TYPE_RMEM`: register
- * * `VM_TYPE_VAL`: size of value
- * * `VM_TYPE_REG`: register type
- *
- * `value`:  
- * * `VM_TYPE_MEM`: memory address
- * * `VM_TYPE_RMEM`: memory address from register
- * * `VM_TYPE_VAL`: value
- * * `VM_TYPE_REG`: register value
  */
 #[derive(Clone, Debug)]
 struct OPcode {

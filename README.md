@@ -9,6 +9,7 @@ As we know, all the popular programming languages with `virtual machine` are all
 * Static typping
 * Compling-time memory management
 * Cross platform
+* Register-based virtual machine
 
 ## Bugs & Reports
-You can report a bug or share your ideas by E-mail `im31core@yandex.com`.
+You can report a bug or share your ideas by email `im31core@yandex.com`.

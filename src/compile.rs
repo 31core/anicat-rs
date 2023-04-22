@@ -6,6 +6,7 @@ use super::vm::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// compile for if compression
 fn compile_if(
     byte_code: &mut Vec<u8>,
     ast: Rc<RefCell<AstNode>>,
@@ -270,6 +271,7 @@ fn compile_op(
     Ok(())
 }
 
+/// compile for variable declaration
 fn compile_new_var(
     byte_code: &mut Vec<u8>,
     ast: Rc<RefCell<AstNode>>,
