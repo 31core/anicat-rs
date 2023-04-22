@@ -65,7 +65,8 @@ impl Debug for VM {
         write!(f, "C2: 0x{:08X}\n", self.c2)?;
         write!(f, "C3: 0x{:08X}\n", self.c3)?;
         write!(f, "SP: 0x{:08X}\n", self.sp)?;
-        write!(f, "IP: 0x{:08X}", self.ip)?;
+        write!(f, "IP: 0x{:08X}\n", self.ip)?;
+        write!(f, "AR: 0x{:08X}", self.ar)?;
         Ok(())
     }
 }

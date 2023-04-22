@@ -1,9 +1,50 @@
 use super::assembly::*;
 use super::ast::*;
+use super::symbol::Symbols;
 use super::variable::*;
 use super::vm::*;
 use std::cell::RefCell;
 use std::rc::Rc;
+
+fn compile_if(
+    byte_code: &mut Vec<u8>,
+    ast: Rc<RefCell<AstNode>>,
+    upper: Option<&LocalVariables>,
+    symbols: &mut Symbols,
+) -> Result<(), String> {
+    let mut variables = LocalVariables::new();
+    variables.previous = upper;
+    compile_op(
+        byte_code,
+        Rc::clone(&ast.borrow().nodes[0].borrow().nodes[0]),
+        &mut variables,
+    )?;
+
+    /*
+    test? c0, val8: 1
+    j?e out_of_code_block
+
+    if_code_block:
+    ...
+    out_of_code_block:
+    ...
+    */
+    let id = symbols.alloc(0);
+    symbols.internal_ref(id, byte_code.len() as u64 + 3);
+    byte_code.extend(assemblize(
+        VM_OP_JNE,
+        &[
+            AssemblyValue::Register(VM_REG_C0),
+            AssemblyValue::Value64(0),
+        ],
+    ));
+
+    /* compile code block */
+    compile(byte_code, &ast.borrow().nodes[1].borrow(), upper, symbols)?;
+
+    symbols.modify_internal_sym(id, byte_code.len() as u64);
+    Ok(())
+}
 
 /**
  * compile for operating tree  
@@ -11,7 +52,7 @@ use std::rc::Rc;
  */
 fn compile_op(
     byte_code: &mut Vec<u8>,
-    ast: &Rc<RefCell<AstNode>>,
+    ast: Rc<RefCell<AstNode>>,
     variables: &mut LocalVariables,
 ) -> Result<(), String> {
     /* left value */
@@ -67,7 +108,7 @@ fn compile_op(
     }
     /* operating result */
     else if ast.borrow().node(0).is_operator() {
-        compile_op(byte_code, &ast.borrow().nodes[0], variables)?;
+        compile_op(byte_code, Rc::clone(&ast.borrow().nodes[0]), variables)?;
     }
 
     /* right value */
@@ -127,7 +168,7 @@ fn compile_op(
             VM_OP_PUSH,
             &[AssemblyValue::Register(VM_REG_C0)],
         ));
-        compile_op(byte_code, &ast.borrow().nodes[1], variables)?;
+        compile_op(byte_code, Rc::clone(&ast.borrow().nodes[1]), variables)?;
         /* mov c1, c0 */
         byte_code.extend(assemblize(
             VM_OP_MOV,
@@ -148,9 +189,33 @@ fn compile_op(
         AST_TYPE_DIV => op = VM_OP_DIV,
         AST_TYPE_AND => op = VM_OP_AND,
         AST_TYPE_OR => op = VM_OP_OR,
+        AST_TYPE_LOGIC_AND => op = VM_OP_AND,
+        AST_TYPE_LOGIC_OR => op = VM_OP_OR,
         AST_TYPE_MOD => op = VM_OP_MOD,
         AST_TYPE_SHL => op = VM_OP_SHL,
         AST_TYPE_SHR => op = VM_OP_SHR,
+        AST_TYPE_EQU => {
+            byte_code.extend(assemblize(
+                VM_OP_TESTEQ,
+                &[
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C1),
+                ],
+            ));
+            return Ok(());
+        }
+        AST_TYPE_NEQU => {
+            byte_code.extend(assemblize(
+                VM_OP_TESTNEQ,
+                &[
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C1),
+                ],
+            ));
+            return Ok(());
+        }
         _ => return Ok(()), // this will be never executed
     }
     byte_code.extend(assemblize(
@@ -165,7 +230,7 @@ fn compile_op(
 
 fn compile_new_var(
     byte_code: &mut Vec<u8>,
-    ast: &Rc<RefCell<AstNode>>,
+    ast: Rc<RefCell<AstNode>>,
     variables: &mut LocalVariables,
 ) -> Result<(), String> {
     let mut new_var = Variable::new();
@@ -201,16 +266,17 @@ fn compile_new_var(
 pub fn compile(
     byte_code: &mut Vec<u8>,
     ast: &AstNode,
-    upper: Option<&'static LocalVariables>,
+    upper: Option<&LocalVariables>,
+    symbols: &mut Symbols,
 ) -> Result<(), String> {
     let mut variables = LocalVariables::new();
     variables.previous = upper;
     for node in &ast.nodes {
         if node.borrow().r#type == AST_TYPE_VAR_DECLARE {
-            compile_new_var(byte_code, node, &mut variables)?;
+            compile_new_var(byte_code, Rc::clone(node), &mut variables)?;
         }
         if node.borrow().is_operator() {
-            compile_op(byte_code, node, &mut variables)?;
+            compile_op(byte_code, Rc::clone(node), &mut variables)?;
         }
         if node.borrow().r#type == AST_TYPE_VAR_SET_VALUE {
             if node.borrow().node(1).r#type == AST_TYPE_VALUE {
@@ -226,7 +292,12 @@ pub fn compile(
                 ));
             }
             if node.borrow().node(1).is_operator() {
-                compile_op(byte_code, &node.borrow().nodes[1], &mut variables).unwrap();
+                compile_op(
+                    byte_code,
+                    Rc::clone(&node.borrow().nodes[1]),
+                    &mut variables,
+                )
+                .unwrap();
             }
             if node.borrow().node(1).r#type == AST_TYPE_IDENTIFIER {
                 /*
@@ -313,6 +384,9 @@ pub fn compile(
                     ],
                 ));
             }
+        }
+        if node.borrow().r#type == AST_TYPE_IF {
+            compile_if(byte_code, Rc::clone(node), Some(&variables), symbols)?;
         }
     }
 

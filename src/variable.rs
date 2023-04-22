@@ -15,30 +15,30 @@ pub enum VariableType {
 impl VariableType {
     pub fn from_string(var_type: &str) -> Self {
         match &var_type[..] {
-            "u8" => return Self::Uint8,
-            "i8" => return Self::Int8,
-            "u16" => return Self::Uint16,
-            "i16" => return Self::Int16,
-            "u32" => return Self::Uint32,
-            "i32" => return Self::Int32,
-            "u64" => return Self::Uint64,
-            "i64" => return Self::Int64,
-            "bool" => return Self::Bool,
-            _ => return Self::Unkown,
+            "u8" => Self::Uint8,
+            "i8" => Self::Int8,
+            "u16" => Self::Uint16,
+            "i16" => Self::Int16,
+            "u32" => Self::Uint32,
+            "i32" => Self::Int32,
+            "u64" => Self::Uint64,
+            "i64" => Self::Int64,
+            "bool" => Self::Bool,
+            _ => Self::Unkown,
         }
     }
     pub fn get_size(&self) -> usize {
         match self {
-            Self::Uint8 => return 1,
-            Self::Int8 => return 1,
-            Self::Uint16 => return 2,
-            Self::Int16 => return 2,
-            Self::Uint32 => return 4,
-            Self::Int32 => return 4,
-            Self::Uint64 => return 8,
-            Self::Int64 => return 8,
-            Self::Bool => return 1,
-            Self::Unkown => return 0,
+            Self::Uint8 => 1,
+            Self::Int8 => 1,
+            Self::Uint16 => 2,
+            Self::Int16 => 2,
+            Self::Uint32 => 4,
+            Self::Int32 => 4,
+            Self::Uint64 => 8,
+            Self::Int64 => 8,
+            Self::Bool => 1,
+            Self::Unkown => 0,
         }
     }
 }
@@ -63,12 +63,12 @@ impl Variable {
 }
 
 #[derive(Debug)]
-pub struct LocalVariables {
+pub struct LocalVariables<'a> {
     pub variables: Vec<Variable>,
-    pub previous: Option<&'static LocalVariables>,
+    pub previous: Option<&'a LocalVariables<'a>>,
 }
 
-impl LocalVariables {
+impl<'a> LocalVariables<'a> {
     pub fn new() -> Self {
         LocalVariables {
             variables: Vec::new(),
@@ -92,6 +92,9 @@ impl LocalVariables {
             if i.name == id {
                 return Some(i);
             }
+        }
+        if let Some(previous) = self.previous {
+            return previous.lookup(id);
         }
         None
     }

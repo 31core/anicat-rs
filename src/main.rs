@@ -2,6 +2,7 @@ pub mod assembly;
 pub mod ast;
 pub mod compile;
 pub mod debug;
+pub mod symbol;
 pub mod token;
 pub mod variable;
 pub mod vm;
@@ -19,7 +20,8 @@ fn main() {
     let ast = AstNode::from_tokens(&mut tokens.into_iter());
     //debug::print_ast(&ast);
     let mut byte_code = Vec::new();
-    let result = compile::compile(&mut byte_code, &ast, None);
+    let mut symbols = symbol::Symbols::new();
+    let result = compile::compile(&mut byte_code, &ast, None, &mut symbols);
     match result {
         Ok(_) => {}
         Err(e) => {
@@ -28,6 +30,7 @@ fn main() {
         }
     }
     byte_code.extend(assembly::assemblize(vm::VM_OP_HAL, &[]));
+    symbols.link(&mut byte_code);
 
     std::fs::write("byte_code", &byte_code).unwrap();
 
