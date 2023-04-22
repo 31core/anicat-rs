@@ -44,7 +44,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct AstNode {
     pub r#type: u8,
     pub data: String,
@@ -53,11 +53,7 @@ pub struct AstNode {
 
 impl AstNode {
     pub fn new() -> Self {
-        AstNode {
-            r#type: 0,
-            data: String::new(),
-            nodes: Vec::new(),
-        }
+        AstNode::default()
     }
     /// push a subnode
     pub fn push(&mut self, node: Rc<RefCell<AstNode>>) {
@@ -83,6 +79,7 @@ impl AstNode {
             || self.r#type == AST_TYPE_MOD
             || self.r#type == AST_TYPE_AND
             || self.r#type == AST_TYPE_OR
+            || self.r#type == AST_TYPE_XOR
             || self.r#type == AST_TYPE_SHL
             || self.r#type == AST_TYPE_SHR
     }
@@ -97,12 +94,7 @@ impl AstNode {
         T: Iterator<Item = Token>,
     {
         let mut top_ast = AstNode::new();
-        loop {
-            let token;
-            match tokens.next() {
-                Some(tk) => token = tk,
-                None => break,
-            }
+        while let Some(token) = tokens.next() {
             let mut new_node = AstNode::new();
             new_node.data = token.name.clone();
             /* keywords */
@@ -133,8 +125,9 @@ impl AstNode {
                 TokenType::Div => new_node.r#type = AST_TYPE_DIV, // /
                 TokenType::Mod => new_node.r#type = AST_TYPE_MOD, // %
                 TokenType::Equ => new_node.r#type = AST_TYPE_VAR_SET_VALUE, // =
-                TokenType::And => new_node.r#type = AST_TYPE_AND, // &&
-                TokenType::Or => new_node.r#type = AST_TYPE_OR,   // ||
+                TokenType::And => new_node.r#type = AST_TYPE_AND, // &
+                TokenType::Or => new_node.r#type = AST_TYPE_OR,   // |
+                TokenType::Xor => new_node.r#type = AST_TYPE_XOR, // ^
                 TokenType::LogicAnd => new_node.r#type = AST_TYPE_LOGIC_AND, // &&
                 TokenType::LogicOr => new_node.r#type = AST_TYPE_LOGIC_OR, // ||
                 TokenType::IsEqu => new_node.r#type = AST_TYPE_EQU, // ==
@@ -291,6 +284,7 @@ impl AstNode {
             ast.borrow().r#type == AST_TYPE_SHL || ast.borrow().r#type == AST_TYPE_SHR
         });
         merge_op(&mut top_ast, |ast| ast.borrow().r#type == AST_TYPE_AND);
+        merge_op(&mut top_ast, |ast| ast.borrow().r#type == AST_TYPE_XOR);
         merge_op(&mut top_ast, |ast| ast.borrow().r#type == AST_TYPE_OR);
         /* handle 'return' '=' node */
         let mut node_i = 0;
@@ -372,11 +366,12 @@ pub const AST_TYPE_SHL: u8 = 26; // <<
 pub const AST_TYPE_SHR: u8 = 27; // >>
 pub const AST_TYPE_AND: u8 = 28; // &
 pub const AST_TYPE_OR: u8 = 29; // |
-pub const AST_TYPE_LOGIC_AND: u8 = 30; // &&
-pub const AST_TYPE_LOGIC_OR: u8 = 31; // ||
-pub const AST_TYPE_VALUE: u8 = 32;
-pub const AST_TYPE_BREAK: u8 = 33;
-pub const AST_TYPE_CONTINUE: u8 = 34;
-pub const AST_TYPE_RETURN: u8 = 35;
-pub const AST_TYPE_INDEX: u8 = 36;
-pub const AST_TYPE_CHILD: u8 = 37;
+pub const AST_TYPE_XOR: u8 = 30; // ^
+pub const AST_TYPE_LOGIC_AND: u8 = 31; // &&
+pub const AST_TYPE_LOGIC_OR: u8 = 32; // ||
+pub const AST_TYPE_VALUE: u8 = 33;
+pub const AST_TYPE_BREAK: u8 = 34;
+pub const AST_TYPE_CONTINUE: u8 = 35;
+pub const AST_TYPE_RETURN: u8 = 36;
+pub const AST_TYPE_INDEX: u8 = 37;
+pub const AST_TYPE_CHILD: u8 = 38;

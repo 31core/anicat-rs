@@ -60,12 +60,12 @@ impl Debug for Token {
 
 impl Debug for VM {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "C0: 0x{:08X}\n", self.c0)?;
-        write!(f, "C1: 0x{:08X}\n", self.c1)?;
-        write!(f, "C2: 0x{:08X}\n", self.c2)?;
-        write!(f, "C3: 0x{:08X}\n", self.c3)?;
-        write!(f, "SP: 0x{:08X}\n", self.sp)?;
-        write!(f, "IP: 0x{:08X}\n", self.ip)?;
+        writeln!(f, "C0: 0x{:08X}", self.c0)?;
+        writeln!(f, "C1: 0x{:08X}", self.c1)?;
+        writeln!(f, "C2: 0x{:08X}", self.c2)?;
+        writeln!(f, "C3: 0x{:08X}", self.c3)?;
+        writeln!(f, "SP: 0x{:08X}", self.sp)?;
+        writeln!(f, "IP: 0x{:08X}", self.ip)?;
         write!(f, "AR: 0x{:08X}", self.ar)?;
         Ok(())
     }

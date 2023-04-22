@@ -71,11 +71,10 @@ fn compile_op(
     }
     /* variable */
     else if ast.borrow().node(0).r#type == AST_TYPE_IDENTIFIER {
-        let offset;
-        match variables.lookup(&ast.borrow().node(0).data) {
-            Some(var) => offset = var.offset,
+        let offset = match variables.lookup(&ast.borrow().node(0).data) {
+            Some(var) => var.offset,
             None => return Err(format!("'{}' undefined.", &ast.borrow().node(0).data)),
-        }
+        };
 
         /*
         mov ar, sp
@@ -126,11 +125,10 @@ fn compile_op(
     }
     /* variable */
     else if ast.borrow().node(1).r#type == AST_TYPE_IDENTIFIER {
-        let offset;
-        match variables.lookup(&ast.borrow().node(1).data) {
-            Some(var) => offset = var.offset,
+        let offset = match variables.lookup(&ast.borrow().node(1).data) {
+            Some(var) => var.offset,
             None => return Err(format!("'{}' undefined.", &ast.borrow().node(1).data)),
-        }
+        };
 
         /*
         mov ar, sp
@@ -181,19 +179,19 @@ fn compile_op(
         byte_code.extend(assemblize(VM_OP_POP, &[AssemblyValue::Register(VM_REG_C0)]));
     }
     /* [add/sub/mul/div] c0, c1 */
-    let op;
-    match ast.borrow().r#type {
-        AST_TYPE_ADD => op = VM_OP_ADD,
-        AST_TYPE_SUB => op = VM_OP_SUB,
-        AST_TYPE_MUL => op = VM_OP_MUL,
-        AST_TYPE_DIV => op = VM_OP_DIV,
-        AST_TYPE_AND => op = VM_OP_AND,
-        AST_TYPE_OR => op = VM_OP_OR,
-        AST_TYPE_LOGIC_AND => op = VM_OP_AND,
-        AST_TYPE_LOGIC_OR => op = VM_OP_OR,
-        AST_TYPE_MOD => op = VM_OP_MOD,
-        AST_TYPE_SHL => op = VM_OP_SHL,
-        AST_TYPE_SHR => op = VM_OP_SHR,
+    let op = match ast.borrow().r#type {
+        AST_TYPE_ADD => VM_OP_ADD,
+        AST_TYPE_SUB => VM_OP_SUB,
+        AST_TYPE_MUL => VM_OP_MUL,
+        AST_TYPE_DIV => VM_OP_DIV,
+        AST_TYPE_AND => VM_OP_AND,
+        AST_TYPE_OR => VM_OP_OR,
+        AST_TYPE_XOR => VM_OP_XOR,
+        AST_TYPE_LOGIC_AND => VM_OP_AND,
+        AST_TYPE_LOGIC_OR => VM_OP_OR,
+        AST_TYPE_MOD => VM_OP_MOD,
+        AST_TYPE_SHL => VM_OP_SHL,
+        AST_TYPE_SHR => VM_OP_SHR,
         AST_TYPE_EQU => {
             byte_code.extend(assemblize(
                 VM_OP_TESTEQ,
@@ -216,8 +214,52 @@ fn compile_op(
             ));
             return Ok(());
         }
+        AST_TYPE_GT => {
+            byte_code.extend(assemblize(
+                VM_OP_TESTGT,
+                &[
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C1),
+                ],
+            ));
+            return Ok(());
+        }
+        AST_TYPE_LT => {
+            byte_code.extend(assemblize(
+                VM_OP_TESTLT,
+                &[
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C1),
+                ],
+            ));
+            return Ok(());
+        }
+        AST_TYPE_GE => {
+            byte_code.extend(assemblize(
+                VM_OP_TESTLE,
+                &[
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C1),
+                ],
+            ));
+            return Ok(());
+        }
+        AST_TYPE_LE => {
+            byte_code.extend(assemblize(
+                VM_OP_TESTLE,
+                &[
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C0),
+                    AssemblyValue::Register(VM_REG_C1),
+                ],
+            ));
+            return Ok(());
+        }
         _ => return Ok(()), // this will be never executed
-    }
+    };
     byte_code.extend(assemblize(
         op,
         &[
@@ -341,11 +383,10 @@ pub fn compile(
             add ar, [offest]
             store c0, ar
             */
-            let offset;
-            match variables.lookup(&node.borrow().node(0).data) {
-                Some(var) => offset = var.offset,
+            let offset = match variables.lookup(&node.borrow().node(0).data) {
+                Some(var) => var.offset,
                 None => return Err(format!("'{}' undefined", &node.borrow().node(0).data)),
-            }
+            };
             byte_code.extend(assemblize(
                 VM_OP_MOV,
                 &[

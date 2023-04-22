@@ -1,3 +1,4 @@
+#[derive(Default)]
 pub struct Symbols {
     internal_syms: Vec<(usize, u64)>,
     internal_refs: Vec<(usize, u64)>,
@@ -16,7 +17,7 @@ impl Symbols {
     }
     /// Add a symbol
     pub fn add(&mut self, symbol: &str, addr: u64) -> Result<(), String> {
-        if let Some(_) = self.lookup(symbol) {
+        if self.lookup(symbol).is_some() {
             return Err(format!("'{}' has already defined", symbol));
         }
         self.external_syms.push((symbol.to_string(), addr));
@@ -30,7 +31,7 @@ impl Symbols {
     }
     /// Add a reference
     pub fn external_ref(&mut self, symbol: &str, addr: u64) -> Result<(), String> {
-        if let None = self.lookup(symbol) {
+        if self.lookup(symbol).is_none() {
             return Err(format!("'{}' not defined", symbol));
         }
         self.external_refs.push((symbol.to_string(), addr));
@@ -54,7 +55,6 @@ impl Symbols {
 
         for ref_i in &self.internal_refs {
             let addr = self.internal_syms[ref_i.0].1;
-            println!("{:?}", ref_i.1);
             for i in 0..8 {
                 byte_code[ref_i.1 as usize + i] = addr.to_be_bytes()[i];
             }

@@ -32,8 +32,9 @@ pub enum TokenType {
     Char,
     Split,
     String,
-    And,      // *
+    And,      // &
     Or,       // |
+    Xor,      // ^
     Not,      // !
     LogicAnd, // &&
     LogicOr,  // ||
@@ -44,6 +45,12 @@ pub enum TokenType {
 
 impl Token {
     pub fn new() -> Self {
+        Token::default()
+    }
+}
+
+impl Default for Token {
+    fn default() -> Self {
         Token {
             r#type: TokenType::Unkown,
             name: String::new(),
@@ -60,7 +67,7 @@ pub const KEYWORDS: [&str; 14] = [
 fn parse_tokens(str: &str) -> Result<Vec<Token>, &str> {
     let mut ret: Vec<Token> = Vec::new();
     let mut this_token = Token::new();
-    pub const SYMBOLS: &str = " \"\\=()[]{}<>,.:;+-*/&|!\t\r\n";
+    pub const SYMBOLS: &str = " \"\\=()[]{}<>,.:;+-*/&|!^\t\r\n";
     let mut in_string = false;
     let mut in_single_line_comment = false;
     let mut in_multiple_line_comment = false;
@@ -100,7 +107,7 @@ fn parse_tokens(str: &str) -> Result<Vec<Token>, &str> {
                 /* if in a string, don't put an in-string synbol into the 'ret' list */
                 if !in_string && !in_single_line_comment && !in_multiple_line_comment {
                     this_token.name.pop();
-                    if this_token.name.len() > 0 {
+                    if !this_token.name.is_empty() {
                         ret.push(this_token);
                         this_token = Token::new();
                     }
@@ -117,7 +124,7 @@ fn parse_tokens(str: &str) -> Result<Vec<Token>, &str> {
             }
         }
     }
-    if this_token.name.len() > 0 {
+    if !this_token.name.is_empty() {
         ret.push(this_token);
     }
     if in_string {
@@ -128,8 +135,8 @@ fn parse_tokens(str: &str) -> Result<Vec<Token>, &str> {
 
 /// detect if a keyword
 fn is_keyword(str: &str) -> bool {
-    for i in 0..KEYWORDS.len() {
-        if str == KEYWORDS[i] {
+    for keyword in KEYWORDS {
+        if str == keyword {
             return true;
         }
     }
@@ -165,7 +172,7 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
         else if tokens[i].name.starts_with("//") || tokens[i].name.starts_with("/*") {
             tokens.remove(i);
             i -= 1;
-        } else if tokens[i].name.starts_with("\"") && tokens[i].name.ends_with("\"") {
+        } else if tokens[i].name.starts_with('\"') && tokens[i].name.ends_with('\"') {
             tokens[i].r#type = TokenType::String;
             /* replace escape characters */
             tokens[i].name = tokens[i].name.replace("\\\"", "\"");
@@ -173,8 +180,8 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
             tokens[i].name = tokens[i].name.replace("\\r", "\r");
             tokens[i].name = tokens[i].name.replace("\\t", "\t");
         } else if tokens[i].name.len() == 3
-            && tokens[i].name.as_bytes()[0] == '\'' as u8
-            && tokens[i].name.as_bytes()[2] == '\'' as u8
+            && tokens[i].name.as_bytes()[0] == b'\''
+            && tokens[i].name.as_bytes()[2] == b'\''
         {
             tokens[i].r#type = TokenType::Char;
         } else if tokens[i].name == "&" && tokens[i + 1].name == "&" {
@@ -232,6 +239,7 @@ pub fn generate_token(code: &str) -> Result<Vec<Token>, &str> {
             match &tokens[i].name[..] {
                 "&" => tokens[i].r#type = TokenType::And,
                 "|" => tokens[i].r#type = TokenType::Or,
+                "^" => tokens[i].r#type = TokenType::Xor,
                 "!" => tokens[i].r#type = TokenType::Not,
                 "=" => tokens[i].r#type = TokenType::Equ,
                 ":" => tokens[i].r#type = TokenType::Explain,

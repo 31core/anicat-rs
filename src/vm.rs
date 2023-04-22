@@ -38,9 +38,11 @@ pub const VM_OP_TESTEQ: u8 = 0x1d;
 pub const VM_OP_TESTNEQ: u8 = 0x1e;
 pub const VM_OP_TESTGT: u8 = 0x1f;
 pub const VM_OP_TESTLT: u8 = 0x20;
-pub const VM_OP_JE: u8 = 0x21;
-pub const VM_OP_JNE: u8 = 0x22;
-pub const VM_OP_HAL: u8 = 0x23;
+pub const VM_OP_TESTGE: u8 = 0x21;
+pub const VM_OP_TESTLE: u8 = 0x22;
+pub const VM_OP_JE: u8 = 0x23;
+pub const VM_OP_JNE: u8 = 0x24;
+pub const VM_OP_HAL: u8 = 0x25;
 
 pub const VM_REG_C0: u8 = 0x20;
 pub const VM_REG_C1: u8 = 0x21;
@@ -145,7 +147,7 @@ impl OPcode {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct VM {
     pub c0: u64,
     pub c1: u64,
@@ -209,7 +211,6 @@ impl VM {
     pub fn run(&mut self) {
         loop {
             let opcode = OPcode::from(self);
-            println!("{:?}", &opcode);
 
             /* load register, address */
             if opcode.op == VM_OP_LOAD8
@@ -226,21 +227,15 @@ impl VM {
                     }
                     VM_OP_LOAD16 => {
                         let dump_data = self.ram.dump(address, 2);
-                        for i in 0..2 {
-                            data[6 + i] = dump_data[i];
-                        }
+                        data[6..].copy_from_slice(dump_data)
                     }
                     VM_OP_LOAD32 => {
                         let dump_data = self.ram.dump(address, 4);
-                        for i in 0..4 {
-                            data[4 + i] = dump_data[i];
-                        }
+                        data[4..].copy_from_slice(dump_data)
                     }
                     VM_OP_LOAD64 => {
                         let dump_data = self.ram.dump(address, 8);
-                        for i in 0..8 {
-                            data[i] = dump_data[i];
-                        }
+                        data.copy_from_slice(dump_data)
                     }
                     _ => {}
                 }
@@ -414,7 +409,7 @@ impl VM {
                 }
             }
             /* testlt result, source, target */
-            if opcode.op == VM_OP_TESTGT {
+            if opcode.op == VM_OP_TESTLT {
                 let source = opcode.get_value(1, self);
                 let target = opcode.get_value(2, self);
                 if let AssemblyValue::Register(register) = opcode.values[0] {
@@ -425,17 +420,37 @@ impl VM {
                     }
                 }
             }
-            /* je source, addr */
-            if opcode.op == VM_OP_JE {
-                if opcode.get_value(0, &self) == 1 {
-                    self.ip = opcode.get_value(1, self);
+            /* testle result, source, target */
+            if opcode.op == VM_OP_TESTGE {
+                let source = opcode.get_value(1, self);
+                let target = opcode.get_value(2, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    if source <= target {
+                        self.set_register(register, 1);
+                    } else {
+                        self.set_register(register, 0);
+                    }
                 }
             }
-            /* jne source, addr */
-            if opcode.op == VM_OP_JNE {
-                if opcode.get_value(0, &self) == 0 {
-                    self.ip = opcode.get_value(1, self);
+            /* testle result, source, target */
+            if opcode.op == VM_OP_TESTLE {
+                let source = opcode.get_value(1, self);
+                let target = opcode.get_value(2, self);
+                if let AssemblyValue::Register(register) = opcode.values[0] {
+                    if source <= target {
+                        self.set_register(register, 1);
+                    } else {
+                        self.set_register(register, 0);
+                    }
                 }
+            }
+            /* je source, addr */
+            if opcode.op == VM_OP_JE && opcode.get_value(0, self) == 1 {
+                self.ip = opcode.get_value(1, self);
+            }
+            /* jne source, addr */
+            if opcode.op == VM_OP_JNE && opcode.get_value(0, self) == 0 {
+                self.ip = opcode.get_value(1, self);
             }
             /* call addr */
             if opcode.op == VM_OP_CALL {
@@ -452,27 +467,34 @@ impl VM {
             }
             /* in port data */
             if opcode.op == VM_OP_IN {
-                if opcode.get_value(0, self) as u8 == VM_DEV_STDIN {
-                    let mut buf = [0];
-                    std::io::stdin().read(&mut buf).unwrap();
-                    //data.set_value(buf[0] as u64, self);
+                let dev = opcode.get_value(0, self) as u8;
+                match dev {
+                    VM_DEV_STDIN => {
+                        let mut buf = [0];
+                        std::io::stdin().read_exact(&mut buf).unwrap();
+                    }
+                    _ => {}
                 }
             }
             /* out port data */
             if opcode.op == VM_OP_OUT {
-                if opcode.get_value(0, self) as u8 == VM_DEV_STDOUT {
-                    let buf = [opcode.get_value(1, self) as u8];
-                    std::io::stdout().write(&buf).unwrap();
-                }
-                if opcode.get_value(0, self) as u8 == VM_DEV_STDERR {
-                    let buf = [opcode.get_value(1, self) as u8];
-                    std::io::stderr().write(&buf).unwrap();
+                let dev = opcode.get_value(0, self) as u8;
+                match dev {
+                    VM_DEV_STDOUT => {
+                        let buf = [opcode.get_value(1, self) as u8];
+                        std::io::stdout().write_all(&buf).unwrap();
+                    }
+                    VM_DEV_STDERR => {
+                        let buf = [opcode.get_value(1, self) as u8];
+                        std::io::stderr().write_all(&buf).unwrap();
+                    }
+                    _ => {}
                 }
             }
             /* not reg */
             if opcode.op == VM_OP_NOT {
                 if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, !opcode.get_value(0, &self));
+                    self.set_register(register, !opcode.get_value(0, self));
                 }
             }
             /* hal */

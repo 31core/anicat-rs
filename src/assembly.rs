@@ -17,11 +17,11 @@ pub fn assemblize(ins: u8, val: &[AssemblyValue]) -> Vec<u8> {
     let mut opcode: u16 = 0;
     let mut data = Vec::new();
     opcode |= (ins as u16) << 9;
-    for i in 0..val.len() {
-        match val[i] {
+    for (i, value) in val.iter().enumerate() {
+        match value {
             AssemblyValue::Value8(v) => {
                 opcode |= (VM_TYPE_VAL8 as u16) << (3 * (2 - i));
-                data.push(v);
+                data.push(*v);
             }
             AssemblyValue::Value16(v) => {
                 opcode |= (VM_TYPE_VAL16 as u16) << (3 * (2 - i));
@@ -37,7 +37,7 @@ pub fn assemblize(ins: u8, val: &[AssemblyValue]) -> Vec<u8> {
             }
             AssemblyValue::Register(r) => {
                 opcode |= (VM_TYPE_REG as u16) << (3 * (2 - i));
-                data.push(r);
+                data.push(*r);
             }
         }
     }

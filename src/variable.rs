@@ -14,7 +14,7 @@ pub enum VariableType {
 
 impl VariableType {
     pub fn from_string(var_type: &str) -> Self {
-        match &var_type[..] {
+        match var_type {
             "u8" => Self::Uint8,
             "i8" => Self::Int8,
             "u16" => Self::Uint16,
@@ -53,6 +53,12 @@ pub struct Variable {
 
 impl Variable {
     pub fn new() -> Self {
+        Variable::default()
+    }
+}
+
+impl Default for Variable {
+    fn default() -> Self {
         Variable {
             name: String::new(),
             size: 0,
@@ -62,7 +68,7 @@ impl Variable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct LocalVariables<'a> {
     pub variables: Vec<Variable>,
     pub previous: Option<&'a LocalVariables<'a>>,
@@ -70,10 +76,7 @@ pub struct LocalVariables<'a> {
 
 impl<'a> LocalVariables<'a> {
     pub fn new() -> Self {
-        LocalVariables {
-            variables: Vec::new(),
-            previous: None,
-        }
+        LocalVariables::default()
     }
     /**
      * Find variable in local variables
@@ -103,13 +106,13 @@ impl<'a> LocalVariables<'a> {
             if offset > 0 {
                 self.variables[i].offset += offset as usize;
             } else {
-                let offset: usize = (offset * -1).try_into().unwrap();
+                let offset: usize = (-offset).try_into().unwrap();
                 self.variables[i].offset -= offset;
             }
         }
     }
     pub fn push(&mut self, var: Variable) -> Result<(), String> {
-        if let Some(_) = self.lookup(&var.name) {
+        if self.lookup(&var.name).is_some() {
             return Err(format!("'{}' has already defined", &var.name));
         }
         self.variables.push(var);

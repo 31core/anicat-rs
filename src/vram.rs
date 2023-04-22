@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct VRAM {
     pub area: Vec<u8>,
     pub size: u64,
@@ -16,8 +16,8 @@ impl VRAM {
         if addr + size > self.size {
             panic!("VRAM overflow");
         }
-        for i in 0..size as usize {
-            self.area[addr as usize + i] = data[i];
+        for (i, byte) in data.iter().enumerate() {
+            self.area[addr as usize + i] = *byte;
         }
     }
     /// dump from VRAM
