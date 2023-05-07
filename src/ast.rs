@@ -83,11 +83,23 @@ impl AstNode {
             || self.r#type == AST_TYPE_SHL
             || self.r#type == AST_TYPE_SHR
     }
-    pub fn get_value(&self) -> Result<u64, ()> {
+    pub fn get_value(&self) -> Result<u64, String> {
         if self.r#type == AST_TYPE_VALUE {
-            return Ok(self.data.parse().unwrap());
+            match self.data.parse::<u64>() {
+                Ok(val) => return Ok(val),
+                Err(_) => return Err(format!("\'{}\' is not a number.", &self.data)),
+            }
         }
-        Err(())
+        Err(String::new())
+    }
+    pub fn get_code_block(&self) -> Option<Ref<AstNode>> {
+        if self.r#type == AST_TYPE_FUNC_DEF {
+            return Some(self.node(2));
+        }
+        if self.r#type == AST_TYPE_IF {
+            return Some(self.node(0));
+        }
+        None
     }
     pub fn from_tokens<T>(tokens: &mut T) -> Self
     where

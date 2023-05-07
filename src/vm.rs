@@ -53,9 +53,9 @@ pub const VM_REG_IP: u8 = 0x25;
 pub const VM_REG_AR: u8 = 0x26;
 
 /*
- value types (0x20 - 0x32)
- This takes 3-bit
- */
+value types (0x20 - 0x32)
+This takes 3-bit
+*/
 pub const VM_TYPE_VAL8: u8 = 1;
 pub const VM_TYPE_VAL16: u8 = 2;
 pub const VM_TYPE_VAL32: u8 = 3;
@@ -457,6 +457,7 @@ impl VM {
             /* in port data */
             if opcode.op == VM_OP_IN {
                 let dev = opcode.get_value(0, self) as u8;
+                #[allow(clippy::single_match)]
                 match dev {
                     VM_DEV_STDIN => {
                         let mut buf = [0];

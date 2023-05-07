@@ -16,7 +16,7 @@ impl Symbols {
         }
     }
     /// Add a symbol
-    pub fn add(&mut self, symbol: &str, addr: u64) -> Result<(), String> {
+    pub fn add_external_sym(&mut self, symbol: &str, addr: u64) -> Result<(), String> {
         if self.lookup(symbol).is_some() {
             return Err(format!("'{}' has already defined", symbol));
         }
@@ -24,7 +24,7 @@ impl Symbols {
         Ok(())
     }
     /// Allocate an internal symbol
-    pub fn alloc(&mut self, addr: u64) -> usize {
+    pub fn alloc_internal_sym(&mut self, addr: u64) -> usize {
         let id = self.internal_syms.len();
         self.internal_syms.push((id, addr));
         id
