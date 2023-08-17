@@ -63,7 +63,7 @@ pub const KEYWORDS: [&str; 14] = [
     "true", "false", "null",
 ];
 
-/// detect the positions of symbols
+/** detect the positions of symbols */
 fn parse_tokens(str: &str) -> Result<Vec<Token>, &str> {
     let mut ret: Vec<Token> = Vec::new();
     let mut this_token = Token::new();
@@ -133,7 +133,7 @@ fn parse_tokens(str: &str) -> Result<Vec<Token>, &str> {
     Ok(ret)
 }
 
-/// detect if a keyword
+/** detect if a keyword */
 fn is_keyword(str: &str) -> bool {
     for keyword in KEYWORDS {
         if str == keyword {
@@ -143,7 +143,7 @@ fn is_keyword(str: &str) -> bool {
     false
 }
 
-/// detect if a number
+/** detect if a number */
 fn is_number(str: &str) -> bool {
     for i in str.chars() {
         if !i.is_numeric() {

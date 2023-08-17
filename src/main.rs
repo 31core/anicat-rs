@@ -19,16 +19,16 @@ fn main() {
     /* generate AST */
     let ast = AstNode::from_tokens(&mut tokens.into_iter());
     //debug::print_ast(&ast);
-    let mut byte_code = Vec::new();
+
     let mut symbols = symbol::Symbols::new();
-    let result = compile::compile(&mut byte_code, &ast, None, &mut symbols);
-    match result {
-        Ok(_) => {}
+    let result = compile::compile(&ast, None, &mut symbols);
+    let mut byte_code = match result {
+        Ok(byte_code) => byte_code,
         Err(e) => {
             eprintln!("{e}");
             return;
         }
-    }
+    };
     byte_code.extend(assembly::assemblize(vm::VM_OP_HAL, &[]));
     symbols.link(&mut byte_code);
 

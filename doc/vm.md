@@ -56,3 +56,22 @@ Accepted value types:
 |jng      |addr[r,v]  |-           |-        |jump if not greater|
 |jnl      |addr[r,v]  |-           |-        |jump if not less   |
 |hal      |-          |-           |-        |halt               |
+
+### mov
+`mov target, source`
+
+* target: The register to restore the value.
+* source: The register or memory address of the original value.
+
+### add
+`add source, value`
+
+* source: The register of the first operand, and where to restore the result.
+* source: The register or constant of the second operand.
+
+## Registers
+|Register|Description                       |
+|--------|----------------------------------|
+|IP      |Pointer of current executing code.|
+|SP      |Stack pointer.                    |
+|AR      |Store pre-operated memory address.|

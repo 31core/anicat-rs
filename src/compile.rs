@@ -4,29 +4,26 @@ use super::symbol::Symbols;
 use super::variable::*;
 use super::vm::*;
 
-/// compile for func declaration
-fn compile_func(
-    byte_code: &mut Vec<u8>,
-    ast: &AstNode,
-    symbols: &mut Symbols,
-) -> Result<(), String> {
+/** compile for func declaration */
+fn compile_func(ast: &AstNode, symbols: &mut Symbols) -> Result<Vec<u8>, String> {
+    let mut byte_code = Vec::new();
     let func_name = ast.node(0).data.clone();
     symbols.add_external_sym(&func_name, byte_code.len() as u64)?;
     /* compile code block */
-    compile(byte_code, &ast.get_code_block().unwrap(), None, symbols)?;
-    Ok(())
+    byte_code.extend(compile(&ast.get_code_block().unwrap(), None, symbols)?);
+    Ok(byte_code)
 }
 
-/// compile for if compression
+/** compile for if compression */
 fn compile_if(
-    byte_code: &mut Vec<u8>,
     ast: &AstNode,
     upper: Option<&LocalVariables>,
     symbols: &mut Symbols,
-) -> Result<(), String> {
+) -> Result<Vec<u8>, String> {
+    let mut byte_code = Vec::new();
     let mut variables = LocalVariables::new();
     variables.previous = upper;
-    compile_op(byte_code, &ast.node(0).node(0), &mut variables)?;
+    byte_code.extend(compile_op(&ast.node(0).node(0), &mut variables)?);
 
     /*
     test? c0, val8: 1
@@ -48,27 +45,24 @@ fn compile_if(
     ));
 
     /* compile code block */
-    compile(byte_code, &ast.get_code_block().unwrap(), upper, symbols)?;
+    byte_code.extend(compile(&ast.get_code_block().unwrap(), upper, symbols)?);
 
     symbols.modify_internal_sym(id, byte_code.len() as u64);
-    Ok(())
+    Ok(byte_code)
 }
 
 /**
  * compile for operating tree  
  * **NOTE**: The result will be saved to C0
  */
-fn compile_op(
-    byte_code: &mut Vec<u8>,
-    ast: &AstNode,
-    variables: &mut LocalVariables,
-) -> Result<(), String> {
+fn compile_op(ast: &AstNode, variables: &mut LocalVariables) -> Result<Vec<u8>, String> {
+    let mut byte_code = Vec::new();
     /* left value */
     if ast.node(0).r#type == AST_TYPE_VALUE {
         /*
         mov c0, val
         */
-        let val = ast.node(0).get_value().unwrap();
+        let val = ast.node(0).get_value()?;
         byte_code.extend(assemblize(
             VM_OP_MOV,
             &[
@@ -115,13 +109,13 @@ fn compile_op(
     }
     /* operating result */
     else if ast.node(0).is_operator() {
-        compile_op(byte_code, &ast.node(0), variables)?;
+        byte_code.extend(compile_op(&ast.node(0), variables)?);
     }
 
     /* right value */
     /* constant */
     if ast.node(1).r#type == AST_TYPE_VALUE {
-        let val: u64 = ast.node(1).get_value().unwrap();
+        let val: u64 = ast.node(1).get_value()?;
         /* mov c1, val64: val */
         byte_code.extend(assemblize(
             VM_OP_MOV,
@@ -174,7 +168,7 @@ fn compile_op(
             VM_OP_PUSH,
             &[AssemblyValue::Register(VM_REG_C0)],
         ));
-        compile_op(byte_code, &ast.node(1), variables)?;
+        byte_code.extend(compile_op(&ast.node(1), variables)?);
         /* mov c1, c0 */
         byte_code.extend(assemblize(
             VM_OP_MOV,
@@ -209,7 +203,7 @@ fn compile_op(
                     AssemblyValue::Register(VM_REG_C1),
                 ],
             ));
-            return Ok(());
+            return Ok(byte_code);
         }
         AST_TYPE_NEQU => {
             byte_code.extend(assemblize(
@@ -220,7 +214,7 @@ fn compile_op(
                     AssemblyValue::Register(VM_REG_C1),
                 ],
             ));
-            return Ok(());
+            return Ok(byte_code);
         }
         AST_TYPE_GT => {
             byte_code.extend(assemblize(
@@ -231,7 +225,7 @@ fn compile_op(
                     AssemblyValue::Register(VM_REG_C1),
                 ],
             ));
-            return Ok(());
+            return Ok(byte_code);
         }
         AST_TYPE_LT => {
             byte_code.extend(assemblize(
@@ -242,7 +236,7 @@ fn compile_op(
                     AssemblyValue::Register(VM_REG_C1),
                 ],
             ));
-            return Ok(());
+            return Ok(byte_code);
         }
         AST_TYPE_GE => {
             byte_code.extend(assemblize(
@@ -253,7 +247,7 @@ fn compile_op(
                     AssemblyValue::Register(VM_REG_C1),
                 ],
             ));
-            return Ok(());
+            return Ok(byte_code);
         }
         AST_TYPE_LE => {
             byte_code.extend(assemblize(
@@ -264,9 +258,9 @@ fn compile_op(
                     AssemblyValue::Register(VM_REG_C1),
                 ],
             ));
-            return Ok(());
+            return Ok(byte_code);
         }
-        _ => return Ok(()), // this will be never executed
+        _ => return Ok(byte_code), // this will be never executed
     };
     byte_code.extend(assemblize(
         op,
@@ -275,15 +269,12 @@ fn compile_op(
             AssemblyValue::Register(VM_REG_C1),
         ],
     ));
-    Ok(())
+    Ok(byte_code)
 }
 
-/// compile for variable declaration
-fn compile_new_var(
-    byte_code: &mut Vec<u8>,
-    ast: &AstNode,
-    variables: &mut LocalVariables,
-) -> Result<(), String> {
+/** compile for variable declaration */
+fn compile_new_var(ast: &AstNode, variables: &mut LocalVariables) -> Result<Vec<u8>, String> {
+    let mut byte_code = Vec::new();
     let mut new_var = Variable::new();
     new_var.name = ast.node(0).data.clone();
     new_var.r#type = VariableType::from_string(&ast.node(1).data);
@@ -302,7 +293,7 @@ fn compile_new_var(
     let size = new_var.size as isize;
     variables.modify_offset(size);
     variables.push(new_var)?;
-    Ok(())
+    Ok(byte_code)
 }
 
 /**
@@ -315,19 +306,19 @@ fn compile_new_var(
  * ```
 */
 pub fn compile(
-    byte_code: &mut Vec<u8>,
     ast: &AstNode,
     upper: Option<&LocalVariables>,
     symbols: &mut Symbols,
-) -> Result<(), String> {
+) -> Result<Vec<u8>, String> {
+    let mut byte_code = Vec::new();
     let mut variables = LocalVariables::new();
     variables.previous = upper;
     for node in &ast.nodes {
         if node.borrow().r#type == AST_TYPE_VAR_DECLARE {
-            compile_new_var(byte_code, &node.borrow(), &mut variables)?;
+            byte_code.extend(compile_new_var(&node.borrow(), &mut variables)?);
         }
         if node.borrow().is_operator() {
-            compile_op(byte_code, &node.borrow(), &mut variables)?;
+            byte_code.extend(compile_op(&node.borrow(), &mut variables)?);
         }
         if node.borrow().r#type == AST_TYPE_VAR_SET_VALUE {
             if node.borrow().node(1).r#type == AST_TYPE_VALUE {
@@ -338,12 +329,12 @@ pub fn compile(
                     VM_OP_MOV,
                     &[
                         AssemblyValue::Register(VM_REG_C0),
-                        AssemblyValue::Value64(node.borrow().node(1).get_value().unwrap()),
+                        AssemblyValue::Value64(node.borrow().node(1).get_value()?),
                     ],
                 ));
             }
             if node.borrow().node(1).is_operator() {
-                compile_op(byte_code, &node.borrow().node(1), &mut variables).unwrap();
+                byte_code.extend(compile_op(&node.borrow().node(1), &mut variables)?);
             }
             if node.borrow().node(1).r#type == AST_TYPE_IDENTIFIER {
                 /*
@@ -420,7 +411,7 @@ pub fn compile(
             byte_code.extend(assemblize(VM_OP_RET, &[]));
             /* return a constant */
             if node.borrow().node(0).r#type == AST_TYPE_VALUE {
-                let val = node.borrow().node(0).get_value().unwrap();
+                let val = node.borrow().node(0).get_value()?;
                 byte_code.extend(assemblize(
                     VM_OP_MOD,
                     &[
@@ -431,10 +422,10 @@ pub fn compile(
             }
         }
         if node.borrow().r#type == AST_TYPE_IF {
-            compile_if(byte_code, &node.borrow(), Some(&variables), symbols)?;
+            byte_code.extend(compile_if(&node.borrow(), Some(&variables), symbols)?);
         }
         if node.borrow().r#type == AST_TYPE_FUNC_DEF {
-            compile_func(byte_code, &node.borrow(), symbols)?;
+            byte_code.extend(compile_func(&node.borrow(), symbols)?);
         }
     }
 
@@ -452,5 +443,5 @@ pub fn compile(
             ],
         ));
     }
-    Ok(())
+    Ok(byte_code)
 }

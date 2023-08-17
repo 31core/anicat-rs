@@ -83,12 +83,12 @@ fn _print_ast(node: &AstNode, re: usize) {
         _print_ast(&(i.borrow()), re + 1);
     }
 }
-/// print AST
+/** print AST */
 pub fn print_ast(node: &AstNode) {
     _print_ast(node, 0);
 }
 
-/// print tokens
+/** print tokens */
 pub fn print_token(tokens: &[Token]) {
     for i in tokens {
         println!("{i:?}");

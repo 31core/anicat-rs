@@ -142,11 +142,11 @@ pub struct VM {
     pub c1: u64,
     pub c2: u64,
     pub c3: u64,
-    /// Instruction Pointer
+    /** Instruction Pointer */
     pub ip: u64,
-    /// Stack Pointer
+    /** Stack Pointer */
     pub sp: u64,
-    /// Address Register
+    /** Address Register */
     pub ar: u64,
 
     /* flags */
@@ -159,17 +159,10 @@ pub struct VM {
 impl VM {
     pub fn new() -> Self {
         VM {
-            c0: 0,
-            c1: 0,
-            c2: 0,
-            c3: 0,
-            ip: 0,
-            ar: 0,
-            zf: false,
-            cf: false,
             sp: VM_STACK_SIZE as u64,
             ram: VRAM::new(4 * 1024 * 1024 * 1024),
             code: Box::new(RefCell::new(Vec::new())),
+            ..Default::default()
         }
     }
     fn set_register(&mut self, register: u8, value: u64) {
@@ -196,7 +189,7 @@ impl VM {
             _ => 0,
         }
     }
-    /// run VM
+    /** run VM */
     pub fn run(&mut self) {
         loop {
             let opcode = OPcode::from(self);
@@ -493,7 +486,7 @@ impl VM {
             }
         }
     }
-    /// update VM opcode
+    /** update VM opcode */
     pub fn update_code(&mut self, code: &[u8]) {
         self.code = Box::new(RefCell::new(Vec::from(code)));
     }

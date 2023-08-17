@@ -55,19 +55,19 @@ impl AstNode {
     pub fn new() -> Self {
         AstNode::default()
     }
-    /// push a subnode
+    /** push a subnode */
     pub fn push(&mut self, node: Rc<RefCell<AstNode>>) {
         self.nodes.push(Rc::clone(&node));
     }
-    /// remove a subnode
+    /** remove a subnode */
     pub fn remove(&mut self, index: usize) {
         self.nodes.remove(index);
     }
-    /// get mutable reference of refcell subnode
+    /** get mutable reference of refcell subnode */
     pub fn node_mut(&self, index: usize) -> RefMut<'_, AstNode> {
         self.nodes[index].borrow_mut()
     }
-    /// get ref of refcell subnode
+    /** get ref of refcell subnode */
     pub fn node(&self, index: usize) -> Ref<'_, AstNode> {
         self.nodes[index].borrow()
     }
@@ -97,7 +97,7 @@ impl AstNode {
             return Some(self.node(2));
         }
         if self.r#type == AST_TYPE_IF {
-            return Some(self.node(0));
+            return Some(self.node(1));
         }
         None
     }

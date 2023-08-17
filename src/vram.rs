@@ -11,7 +11,7 @@ impl VRAM {
             size,
         }
     }
-    /// load to VRAM
+    /** load to VRAM */
     pub fn load(&mut self, addr: u64, size: u64, data: &[u8]) {
         if addr + size > self.size {
             panic!("VRAM overflow");
@@ -20,7 +20,7 @@ impl VRAM {
             self.area[addr as usize + i] = *byte;
         }
     }
-    /// dump from VRAM
+    /** dump from VRAM */
     pub fn dump(&self, addr: u64, size: u64) -> &[u8] {
         if addr + size > self.size {
             panic!("VRAM overflow");
