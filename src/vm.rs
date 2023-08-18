@@ -426,6 +426,10 @@ impl VM {
                     }
                 }
             }
+            /* jmp addr */
+            if opcode.op == VM_OP_JMP {
+                self.ip = opcode.get_value(0, self);
+            }
             /* je source, addr */
             if opcode.op == VM_OP_JE && opcode.get_value(0, self) == 1 {
                 self.ip = opcode.get_value(1, self);

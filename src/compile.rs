@@ -4,13 +4,69 @@ use super::symbol::Symbols;
 use super::variable::*;
 use super::vm::*;
 
+pub const NORMAL_BASE_ADDR: u64 = 0;
+
 /** compile for func declaration */
-fn compile_func(ast: &AstNode, symbols: &mut Symbols) -> Result<Vec<u8>, String> {
+fn compile_func(ast: &AstNode, symbols: &mut Symbols, base_addr: u64) -> Result<Vec<u8>, String> {
     let mut byte_code = Vec::new();
     let func_name = ast.node(0).data.clone();
-    symbols.add_external_sym(&func_name, byte_code.len() as u64)?;
+    symbols.add_external_sym(&func_name, base_addr + byte_code.len() as u64)?;
     /* compile code block */
-    byte_code.extend(compile(&ast.get_code_block().unwrap(), None, symbols)?);
+    byte_code.extend(compile(
+        &ast.get_code_block().unwrap(),
+        None,
+        symbols,
+        base_addr + byte_code.len() as u64,
+    )?);
+    Ok(byte_code)
+}
+
+/** compile for func declaration */
+fn compile_while(
+    ast: &AstNode,
+    upper: Option<&LocalVariables>,
+    symbols: &mut Symbols,
+    base_addr: u64,
+) -> Result<Vec<u8>, String> {
+    let mut byte_code = Vec::new();
+    let mut variables = LocalVariables::new();
+    variables.previous = upper;
+
+    let start_id = symbols.alloc_internal_sym(base_addr);
+    byte_code.extend(compile_op(&ast.node(0).node(0), &mut variables)?);
+
+    /*
+    start:
+    test? c0, val8: 1
+    jne out_of_code_block
+
+    if_code_block:
+    ...
+    jmp start
+    out_of_code_block:
+    ...
+    */
+    let out_of_code_block_id = symbols.alloc_internal_sym(0);
+    symbols.internal_ref(out_of_code_block_id, base_addr + byte_code.len() as u64 + 3);
+    byte_code.extend(assemblize(
+        VM_OP_JNE,
+        &[
+            AssemblyValue::Register(VM_REG_C0),
+            AssemblyValue::Value64(0),
+        ],
+    ));
+
+    /* compile code block */
+    byte_code.extend(compile(
+        &ast.get_code_block().unwrap(),
+        upper,
+        symbols,
+        base_addr + byte_code.len() as u64,
+    )?);
+    symbols.internal_ref(start_id, base_addr + byte_code.len() as u64 + 2);
+    byte_code.extend(assemblize(VM_OP_JMP, &[AssemblyValue::Value64(0)]));
+
+    symbols.modify_internal_sym(out_of_code_block_id, base_addr + byte_code.len() as u64);
     Ok(byte_code)
 }
 
@@ -19,6 +75,7 @@ fn compile_if(
     ast: &AstNode,
     upper: Option<&LocalVariables>,
     symbols: &mut Symbols,
+    base_addr: u64,
 ) -> Result<Vec<u8>, String> {
     let mut byte_code = Vec::new();
     let mut variables = LocalVariables::new();
@@ -34,8 +91,8 @@ fn compile_if(
     out_of_code_block:
     ...
     */
-    let id = symbols.alloc_internal_sym(0);
-    symbols.internal_ref(id, byte_code.len() as u64 + 3);
+    let out_of_code_block_id = symbols.alloc_internal_sym(0);
+    symbols.internal_ref(out_of_code_block_id, base_addr + byte_code.len() as u64 + 3);
     byte_code.extend(assemblize(
         VM_OP_JNE,
         &[
@@ -45,9 +102,14 @@ fn compile_if(
     ));
 
     /* compile code block */
-    byte_code.extend(compile(&ast.get_code_block().unwrap(), upper, symbols)?);
+    byte_code.extend(compile(
+        &ast.get_code_block().unwrap(),
+        upper,
+        symbols,
+        base_addr + byte_code.len() as u64,
+    )?);
 
-    symbols.modify_internal_sym(id, byte_code.len() as u64);
+    symbols.modify_internal_sym(out_of_code_block_id, base_addr + byte_code.len() as u64);
     Ok(byte_code)
 }
 
@@ -309,6 +371,7 @@ pub fn compile(
     ast: &AstNode,
     upper: Option<&LocalVariables>,
     symbols: &mut Symbols,
+    base_addr: u64,
 ) -> Result<Vec<u8>, String> {
     let mut byte_code = Vec::new();
     let mut variables = LocalVariables::new();
@@ -422,10 +485,27 @@ pub fn compile(
             }
         }
         if node.borrow().r#type == AST_TYPE_IF {
-            byte_code.extend(compile_if(&node.borrow(), Some(&variables), symbols)?);
+            byte_code.extend(compile_if(
+                &node.borrow(),
+                Some(&variables),
+                symbols,
+                base_addr + byte_code.len() as u64,
+            )?);
+        }
+        if node.borrow().r#type == AST_TYPE_WHILE {
+            byte_code.extend(compile_while(
+                &node.borrow(),
+                Some(&variables),
+                symbols,
+                base_addr + byte_code.len() as u64,
+            )?);
         }
         if node.borrow().r#type == AST_TYPE_FUNC_DEF {
-            byte_code.extend(compile_func(&node.borrow(), symbols)?);
+            byte_code.extend(compile_func(
+                &node.borrow(),
+                symbols,
+                base_addr + byte_code.len() as u64,
+            )?);
         }
     }
 

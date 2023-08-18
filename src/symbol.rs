@@ -41,7 +41,7 @@ impl Symbols {
     pub fn internal_ref(&mut self, symbol: usize, addr: u64) {
         self.internal_refs.push((symbol, addr));
     }
-    /** Add an internal reference */
+    /** Modify an internal reference */
     pub fn modify_internal_sym(&mut self, id: usize, addr: u64) {
         self.internal_syms[id].1 = addr;
     }

@@ -11,5 +11,8 @@ As we know, all the popular programming languages with `virtual machine` are all
 * Cross platform
 * Register-based virtual machine
 
+## Universal VM
+It sounds like JVM or WASI, right? But JVM isn't a low-level VM, and WebAssembly is a 32bit VM, we aimed to develop a universal and low-level VM that can run on every platform.
+
 ## Bugs & Reports
-You can report a bug or share your ideas by email `im31core@yandex.com`.
+You can report a bug or share your ideas by email `31core@tutanota.com`.

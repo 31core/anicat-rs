@@ -96,7 +96,7 @@ impl AstNode {
         if self.r#type == AST_TYPE_FUNC_DEF {
             return Some(self.node(2));
         }
-        if self.r#type == AST_TYPE_IF {
+        if self.r#type == AST_TYPE_IF || self.r#type == AST_TYPE_WHILE {
             return Some(self.node(1));
         }
         None
@@ -183,6 +183,7 @@ impl AstNode {
             */
             if top_ast.node(node_i).r#type == AST_TYPE_IF
                 || top_ast.node(node_i).r#type == AST_TYPE_ELIF
+                || top_ast.node(node_i).r#type == AST_TYPE_WHILE
             {
                 /* add param node */
                 let param_node = Rc::clone(&top_ast.nodes[node_i + 1]);
