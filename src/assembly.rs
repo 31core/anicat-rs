@@ -1,4 +1,4 @@
-use super::vm::*;
+use crate::vm::*;
 
 #[derive(Clone, Debug)]
 pub enum AssemblyValue {

@@ -1,16 +1,18 @@
-use super::assembly::AssemblyValue;
-use super::vram::VRAM;
+use crate::assembly::AssemblyValue;
+use crate::vram::Vram;
 use std::cell::RefCell;
 use std::io::{Read, Write};
 
 pub const VM_STACK_SIZE: usize = 8 * 1024 * 1024;
+
+pub const VM_BITS: usize = 64;
+pub const VM_USIZE: usize = VM_BITS / 8;
 
 // op codes (0x01 - 0x22)
 pub const VM_OP_MOV: u8 = 0x01;
 pub const VM_OP_IN: u8 = 0x02;
 pub const VM_OP_OUT: u8 = 0x03;
 pub const VM_OP_JMP: u8 = 0x04;
-pub const VM_OP_CMP: u8 = 0x05;
 pub const VM_OP_ADD: u8 = 0x06;
 pub const VM_OP_SUB: u8 = 0x07;
 pub const VM_OP_MUL: u8 = 0x08;
@@ -152,7 +154,7 @@ pub struct VM {
     /* flags */
     pub zf: bool,
     pub cf: bool,
-    pub ram: VRAM,
+    pub ram: Vram,
     pub code: Box<RefCell<Vec<u8>>>,
 }
 
@@ -160,10 +162,13 @@ impl VM {
     pub fn new() -> Self {
         VM {
             sp: VM_STACK_SIZE as u64,
-            ram: VRAM::new(4 * 1024 * 1024 * 1024),
+            ram: Vram::new(4 * 1024 * 1024 * 1024),
             code: Box::new(RefCell::new(Vec::new())),
             ..Default::default()
         }
+    }
+    pub fn set_entry_point(&mut self, addr: u64) {
+        self.ip = addr;
     }
     fn set_register(&mut self, register: u8, value: u64) {
         match register {
@@ -257,84 +262,36 @@ impl VM {
                     self.set_register(register, source);
                 }
             }
-            /* add source, target */
-            if opcode.op == VM_OP_ADD {
+            /* binary operations
+             *[op] source, target */
+            if opcode.op == VM_OP_ADD
+                || opcode.op == VM_OP_SUB
+                || opcode.op == VM_OP_MUL
+                || opcode.op == VM_OP_DIV
+                || opcode.op == VM_OP_MOD
+                || opcode.op == VM_OP_AND
+                || opcode.op == VM_OP_OR
+                || opcode.op == VM_OP_XOR
+                || opcode.op == VM_OP_SHL
+                || opcode.op == VM_OP_SHR
+            {
                 let source = opcode.get_value(0, self);
                 let target = opcode.get_value(1, self);
+
                 if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source + target);
-                }
-            }
-            /* sub source, target */
-            if opcode.op == VM_OP_SUB {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source - target);
-                }
-            }
-            /* mul source, target */
-            if opcode.op == VM_OP_MUL {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source * target);
-                }
-            }
-            /* div source, target */
-            if opcode.op == VM_OP_DIV {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source / target);
-                }
-            }
-            /* mod source, target */
-            if opcode.op == VM_OP_MOD {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source % target);
-                }
-            }
-            /* and source, target */
-            if opcode.op == VM_OP_AND {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source & target);
-                }
-            }
-            /* or source, target */
-            if opcode.op == VM_OP_OR {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source | target);
-                }
-            }
-            /* xor source, target */
-            if opcode.op == VM_OP_XOR {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source ^ target);
-                }
-            }
-            /* shl source, target */
-            if opcode.op == VM_OP_SHL {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source << target);
-                }
-            }
-            /* shr source, target */
-            if opcode.op == VM_OP_SHR {
-                let source = opcode.get_value(0, self);
-                let target = opcode.get_value(1, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    self.set_register(register, source >> target);
+                    match opcode.op {
+                        VM_OP_ADD => self.set_register(register, source + target),
+                        VM_OP_SUB => self.set_register(register, source - target),
+                        VM_OP_MUL => self.set_register(register, source * target),
+                        VM_OP_DIV => self.set_register(register, source / target),
+                        VM_OP_MOD => self.set_register(register, source % target),
+                        VM_OP_AND => self.set_register(register, source & target),
+                        VM_OP_OR => self.set_register(register, source | target),
+                        VM_OP_XOR => self.set_register(register, source ^ target),
+                        VM_OP_SHL => self.set_register(register, source << target),
+                        VM_OP_SHR => self.set_register(register, source >> target),
+                        _ => {}
+                    }
                 }
             }
             /* push register */
@@ -354,72 +311,29 @@ impl VM {
                 self.sp += 8;
             }
             /* TEST commands */
-            /* testeq result, source, target */
-            if opcode.op == VM_OP_TESTEQ {
+            /* test[?] result, source, target */
+            if opcode.op == VM_OP_TESTEQ
+                || opcode.op == VM_OP_TESTNEQ
+                || opcode.op == VM_OP_TESTGT
+                || opcode.op == VM_OP_TESTLT
+                || opcode.op == VM_OP_TESTGE
+                || opcode.op == VM_OP_TESTLE
+            {
                 let source = opcode.get_value(1, self);
                 let target = opcode.get_value(2, self);
+
+                let result = match opcode.op {
+                    VM_OP_TESTEQ => source == target,
+                    VM_OP_TESTNEQ => source != target,
+                    VM_OP_TESTGT => source > target,
+                    VM_OP_TESTLT => source < target,
+                    VM_OP_TESTGE => source >= target,
+                    VM_OP_TESTLE => source <= target,
+                    _ => false,
+                };
+
                 if let AssemblyValue::Register(register) = opcode.values[0] {
-                    if source == target {
-                        self.set_register(register, 1);
-                    } else {
-                        self.set_register(register, 0);
-                    }
-                }
-            }
-            /* testneq result, source, target */
-            if opcode.op == VM_OP_TESTNEQ {
-                let source = opcode.get_value(1, self);
-                let target = opcode.get_value(2, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    if source != target {
-                        self.set_register(register, 1);
-                    } else {
-                        self.set_register(register, 0);
-                    }
-                }
-            }
-            /* testgt result, source, target */
-            if opcode.op == VM_OP_TESTGT {
-                let source = opcode.get_value(1, self);
-                let target = opcode.get_value(2, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    if source > target {
-                        self.set_register(register, 1);
-                    } else {
-                        self.set_register(register, 0);
-                    }
-                }
-            }
-            /* testlt result, source, target */
-            if opcode.op == VM_OP_TESTLT {
-                let source = opcode.get_value(1, self);
-                let target = opcode.get_value(2, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    if source < target {
-                        self.set_register(register, 1);
-                    } else {
-                        self.set_register(register, 0);
-                    }
-                }
-            }
-            /* testle result, source, target */
-            if opcode.op == VM_OP_TESTGE {
-                let source = opcode.get_value(1, self);
-                let target = opcode.get_value(2, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    if source <= target {
-                        self.set_register(register, 1);
-                    } else {
-                        self.set_register(register, 0);
-                    }
-                }
-            }
-            /* testle result, source, target */
-            if opcode.op == VM_OP_TESTLE {
-                let source = opcode.get_value(1, self);
-                let target = opcode.get_value(2, self);
-                if let AssemblyValue::Register(register) = opcode.values[0] {
-                    if source <= target {
+                    if result {
                         self.set_register(register, 1);
                     } else {
                         self.set_register(register, 0);

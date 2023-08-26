@@ -1,6 +1,6 @@
-use super::ast::AstNode;
-use super::token::Token;
-use super::vm::VM;
+use crate::ast::AstNode;
+use crate::token::Token;
+use crate::vm::VM;
 use std::fmt::Debug;
 
 const AST_TYPES: [&str; 38] = [

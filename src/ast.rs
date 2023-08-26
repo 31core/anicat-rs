@@ -1,4 +1,4 @@
-use super::token::*;
+use crate::token::*;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 

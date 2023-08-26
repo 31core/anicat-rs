@@ -1,4 +1,4 @@
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Symbols {
     internal_syms: Vec<(usize, u64)>,
     internal_refs: Vec<(usize, u64)>,
@@ -16,7 +16,7 @@ impl Symbols {
         }
     }
     /** Add a symbol */
-    pub fn add_external_sym(&mut self, symbol: &str, addr: u64) -> Result<(), String> {
+    pub fn add_external_symbol(&mut self, symbol: &str, addr: u64) -> Result<(), String> {
         if self.lookup(symbol).is_some() {
             return Err(format!("'{}' has already defined", symbol));
         }
@@ -24,13 +24,13 @@ impl Symbols {
         Ok(())
     }
     /** Allocate an internal symbol */
-    pub fn alloc_internal_sym(&mut self, addr: u64) -> usize {
+    pub fn alloc_internal_symbol(&mut self, addr: u64) -> usize {
         let id = self.internal_syms.len();
         self.internal_syms.push((id, addr));
         id
     }
     /** Add a reference */
-    pub fn external_ref(&mut self, symbol: &str, addr: u64) -> Result<(), String> {
+    pub fn external_reference(&mut self, symbol: &str, addr: u64) -> Result<(), String> {
         if self.lookup(symbol).is_none() {
             return Err(format!("'{}' not defined", symbol));
         }
@@ -38,7 +38,7 @@ impl Symbols {
         Ok(())
     }
     /** Add an internal reference */
-    pub fn internal_ref(&mut self, symbol: usize, addr: u64) {
+    pub fn internal_reference(&mut self, symbol: usize, addr: u64) {
         self.internal_refs.push((symbol, addr));
     }
     /** Modify an internal reference */

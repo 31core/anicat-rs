@@ -1,20 +1,36 @@
-use super::assembly::*;
-use super::ast::*;
-use super::symbol::Symbols;
-use super::variable::*;
-use super::vm::*;
+use crate::assembly::*;
+use crate::ast::*;
+use crate::function::Functions;
+use crate::symbol::Symbols;
+use crate::variable::*;
+use crate::vm::*;
 
 pub const NORMAL_BASE_ADDR: u64 = 0;
 
 /** compile for func declaration */
-fn compile_func(ast: &AstNode, symbols: &mut Symbols, base_addr: u64) -> Result<Vec<u8>, String> {
+fn compile_func_def(
+    ast: &AstNode,
+    symbols: &mut Symbols,
+    base_addr: u64,
+) -> Result<Vec<u8>, String> {
     let mut byte_code = Vec::new();
     let func_name = ast.node(0).data.clone();
-    symbols.add_external_sym(&func_name, base_addr + byte_code.len() as u64)?;
+    let mut local_vars = LocalVariables::new();
+    symbols.add_external_symbol(&func_name, base_addr + byte_code.len() as u64)?;
+
+    /* get params */
+    for i in &ast.node(1).nodes {
+        let mut new_var = Variable::new();
+        new_var.name = i.borrow().node(0).data.clone();
+        new_var.r#type = VariableType::from_string(&i.borrow().node(1).data);
+        local_vars.push(new_var)?;
+    }
+    local_vars.modify_offset(VM_USIZE as isize);
+
     /* compile code block */
     byte_code.extend(compile(
         &ast.get_code_block().unwrap(),
-        None,
+        Some(&local_vars),
         symbols,
         base_addr + byte_code.len() as u64,
     )?);
@@ -32,7 +48,7 @@ fn compile_while(
     let mut variables = LocalVariables::new();
     variables.previous = upper;
 
-    let start_id = symbols.alloc_internal_sym(base_addr);
+    let start_id = symbols.alloc_internal_symbol(base_addr);
     byte_code.extend(compile_op(&ast.node(0).node(0), &mut variables)?);
 
     /*
@@ -46,8 +62,8 @@ fn compile_while(
     out_of_code_block:
     ...
     */
-    let out_of_code_block_id = symbols.alloc_internal_sym(0);
-    symbols.internal_ref(out_of_code_block_id, base_addr + byte_code.len() as u64 + 3);
+    let out_of_code_block_id = symbols.alloc_internal_symbol(0);
+    symbols.internal_reference(out_of_code_block_id, base_addr + byte_code.len() as u64 + 3);
     byte_code.extend(assemblize(
         VM_OP_JNE,
         &[
@@ -63,7 +79,7 @@ fn compile_while(
         symbols,
         base_addr + byte_code.len() as u64,
     )?);
-    symbols.internal_ref(start_id, base_addr + byte_code.len() as u64 + 2);
+    symbols.internal_reference(start_id, base_addr + byte_code.len() as u64 + 2);
     byte_code.extend(assemblize(VM_OP_JMP, &[AssemblyValue::Value64(0)]));
 
     symbols.modify_internal_sym(out_of_code_block_id, base_addr + byte_code.len() as u64);
@@ -91,8 +107,8 @@ fn compile_if(
     out_of_code_block:
     ...
     */
-    let out_of_code_block_id = symbols.alloc_internal_sym(0);
-    symbols.internal_ref(out_of_code_block_id, base_addr + byte_code.len() as u64 + 3);
+    let out_of_code_block_id = symbols.alloc_internal_symbol(0);
+    symbols.internal_reference(out_of_code_block_id, base_addr + byte_code.len() as u64 + 3);
     byte_code.extend(assemblize(
         VM_OP_JNE,
         &[
@@ -359,12 +375,11 @@ fn compile_new_var(ast: &AstNode, variables: &mut LocalVariables) -> Result<Vec<
 }
 
 /**
- * Compile to byte code
+ * Compile AST to byte code
  *
  * Example:
  * ```
- * let mut byte_code = Vec::new();
- * compile::compile(&mut byte_code, &ast, None);
+ * let byte_code = compile::compile(&ast, None).unwrap();
  * ```
 */
 pub fn compile(
@@ -471,18 +486,18 @@ pub fn compile(
             ));
         }
         if node.borrow().r#type == AST_TYPE_RETURN {
-            byte_code.extend(assemblize(VM_OP_RET, &[]));
             /* return a constant */
             if node.borrow().node(0).r#type == AST_TYPE_VALUE {
                 let val = node.borrow().node(0).get_value()?;
                 byte_code.extend(assemblize(
-                    VM_OP_MOD,
+                    VM_OP_MOV,
                     &[
                         AssemblyValue::Register(VM_REG_C0),
                         AssemblyValue::Value64(val),
                     ],
                 ));
             }
+            byte_code.extend(assemblize(VM_OP_RET, &[]));
         }
         if node.borrow().r#type == AST_TYPE_IF {
             byte_code.extend(compile_if(
@@ -501,11 +516,16 @@ pub fn compile(
             )?);
         }
         if node.borrow().r#type == AST_TYPE_FUNC_DEF {
-            byte_code.extend(compile_func(
+            byte_code.extend(compile_func_def(
                 &node.borrow(),
                 symbols,
                 base_addr + byte_code.len() as u64,
             )?);
+        }
+        if node.borrow().r#type == AST_TYPE_FUNC_CALL {
+            let func_name = node.borrow().node(0).data.clone();
+            let addr = symbols.lookup(&func_name).unwrap();
+            byte_code.extend(assemblize(VM_OP_CALL, &[AssemblyValue::Value64(addr)]));
         }
     }
 
@@ -524,4 +544,21 @@ pub fn compile(
         ));
     }
     Ok(byte_code)
+}
+
+#[derive(Default)]
+pub struct Compiler {
+    functions: Functions,
+}
+
+impl Compiler {
+    pub fn compile(
+        &self,
+        ast: &AstNode,
+        upper: Option<&LocalVariables>,
+        symbols: &mut Symbols,
+        base_addr: u64,
+    ) -> Result<Vec<u8>, String> {
+        compile(ast, upper, symbols, base_addr)
+    }
 }

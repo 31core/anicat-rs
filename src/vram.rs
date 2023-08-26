@@ -1,12 +1,12 @@
 #[derive(Clone, Debug, Default)]
-pub struct VRAM {
+pub struct Vram {
     pub area: Vec<u8>,
     pub size: u64,
 }
 
-impl VRAM {
+impl Vram {
     pub fn new(size: u64) -> Self {
-        VRAM {
+        Self {
             area: vec![0; size as usize],
             size,
         }

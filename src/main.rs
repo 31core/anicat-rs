@@ -1,12 +1,13 @@
-pub mod assembly;
-pub mod ast;
-pub mod compile;
-pub mod debug;
-pub mod symbol;
-pub mod token;
-pub mod variable;
-pub mod vm;
-pub mod vram;
+mod assembly;
+mod ast;
+mod compile;
+mod debug;
+mod function;
+mod symbol;
+mod token;
+mod variable;
+mod vm;
+mod vram;
 
 use ast::AstNode;
 use std::io::*;
@@ -22,7 +23,8 @@ fn main() -> std::io::Result<()> {
     //debug::print_ast(&ast);
 
     let mut symbols = symbol::Symbols::new();
-    let result = compile::compile(&ast, None, &mut symbols, compile::NORMAL_BASE_ADDR);
+    let compiler = compile::Compiler::default();
+    let result = compiler.compile(&ast, None, &mut symbols, compile::NORMAL_BASE_ADDR);
     let mut byte_code = match result {
         Ok(byte_code) => byte_code,
         Err(e) => {
@@ -37,6 +39,7 @@ fn main() -> std::io::Result<()> {
 
     let mut vm = VM::new();
     vm.update_code(&byte_code);
+    vm.set_entry_point(symbols.lookup("main").unwrap());
     vm.run();
     println!("{vm:?}");
     Ok(())
