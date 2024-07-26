@@ -92,6 +92,16 @@ impl AstNode {
         }
         Err(String::new())
     }
+    /** returns a top node that typed `AST_TYPE_PARAMS` */
+    pub fn get_params(&self) -> Option<Ref<AstNode>> {
+        if self.r#type == AST_TYPE_FUNC_CALL {
+            return Some(self.node(1));
+        }
+        if self.r#type == AST_TYPE_IF || self.r#type == AST_TYPE_WHILE {
+            return Some(self.node(0));
+        }
+        None
+    }
     pub fn get_code_block(&self) -> Option<Ref<AstNode>> {
         if self.r#type == AST_TYPE_FUNC_DEF {
             return Some(self.node(2));
@@ -108,7 +118,7 @@ impl AstNode {
         let mut top_ast = AstNode::new();
         while let Some(token) = tokens.next() {
             let mut new_node = AstNode::new();
-            new_node.data = token.name.clone();
+            new_node.data.clone_from(&token.name);
             /* keywords */
             if token.r#type == TokenType::Keyword {
                 match &token.name[..] {

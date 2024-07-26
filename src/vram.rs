@@ -12,13 +12,11 @@ impl Vram {
         }
     }
     /** load to VRAM */
-    pub fn load(&mut self, addr: u64, size: u64, data: &[u8]) {
-        if addr + size > self.size {
+    pub fn load(&mut self, addr: u64, data: &[u8]) {
+        if addr + data.len() as u64 > self.size {
             panic!("VRAM overflow");
         }
-        for (i, byte) in data.iter().enumerate() {
-            self.area[addr as usize + i] = *byte;
-        }
+        self.area[addr as usize..addr as usize + data.len()].copy_from_slice(data);
     }
     /** dump from VRAM */
     pub fn dump(&self, addr: u64, size: u64) -> &[u8] {

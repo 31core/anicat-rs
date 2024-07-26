@@ -240,16 +240,16 @@ impl VM {
                 let address = opcode.get_value(1, self);
                 match opcode.op {
                     VM_OP_STORE8 => {
-                        self.ram.load(address, 1, &value.to_be_bytes()[7..]);
+                        self.ram.load(address, &value.to_be_bytes()[7..8]);
                     }
                     VM_OP_STORE16 => {
-                        self.ram.load(address, 2, &value.to_be_bytes()[6..]);
+                        self.ram.load(address, &value.to_be_bytes()[6..8]);
                     }
                     VM_OP_STORE32 => {
-                        self.ram.load(address, 4, &value.to_be_bytes()[4..]);
+                        self.ram.load(address, &value.to_be_bytes()[4..8]);
                     }
                     VM_OP_STORE64 => {
-                        self.ram.load(address, 8, &value.to_be_bytes());
+                        self.ram.load(address, &value.to_be_bytes());
                     }
                     _ => {}
                 }
@@ -298,7 +298,7 @@ impl VM {
             if opcode.op == VM_OP_PUSH {
                 self.sp -= 8;
                 self.ram
-                    .load(self.sp, 8, &opcode.get_value(0, self).to_be_bytes());
+                    .load(self.sp, &opcode.get_value(0, self).to_be_bytes());
             }
             /* pop register */
             if opcode.op == VM_OP_POP {
@@ -356,7 +356,7 @@ impl VM {
             if opcode.op == VM_OP_CALL {
                 /* push IP */
                 self.sp -= 8;
-                self.ram.load(self.sp, 8, &self.ip.to_be_bytes());
+                self.ram.load(self.sp, &self.ip.to_be_bytes());
                 self.ip = opcode.get_value(0, self);
             }
             /* ret */

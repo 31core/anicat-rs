@@ -1,23 +1,19 @@
 use crate::variable::VariableType;
 
+#[derive(Default, Debug)]
 pub struct Function {
     pub name: String,
     pub params: Vec<VariableType>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Functions {
     functions: Vec<Function>,
 }
 
 impl Functions {
     pub fn lookup(&self, name: &str) -> Option<&Function> {
-        for i in &self.functions {
-            if i.name == name {
-                return Some(i);
-            }
-        }
-        None
+        self.functions.iter().find(|&i| i.name == name)
     }
     pub fn add(&mut self, name: &str, params: &[VariableType]) {
         self.functions.push(Function {
